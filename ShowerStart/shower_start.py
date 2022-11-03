@@ -16,28 +16,27 @@ class CascadeParticle:
 
 
 class CascadeEvent:
-    emin_threshold = 1e4
     mbarn_in_cm2 = 1e-27
     proton_mass_g = 1.672621e-24
     mass_barn = proton_mass_g / mbarn_in_cm2
-    id_in_shower = 0
-
-    event_generator = None
 
     def __init__(self, emin_threshold):
-        print(f"Evgen = {CascadeEvent.event_generator}")
-        if self.event_generator is None:
-            ekin = impy.kinematics.FixedTarget(10, "proton", (14, 7))
-            CascadeEvent.event_generator = impy.models.Sibyll23d(ekin)
-            self._set_average_A(14)
-            self.event_generator_is_set = True
+        
+        self.emin_threshold = emin_threshold
+        self.id_in_shower = 0
+        
+        ekin = impy.kinematics.FixedTarget(10, "proton", (14, 7))
+        self.event_generator = impy.models.Sibyll23d(ekin)
+        
+        self._set_average_A(14)
+            
         valid_sib_ids = [7, 8, 9, 10, 11, 12, 13, 14, -13, -14]
         valid_sib_ids.extend([34, 35, 36, 37, 38, 39])
         valid_sib_ids.extend([59, 60, 71, 72, 74, 75])
         valid_sib_ids.extend([87, 88, 89, 99, 27])
         valid_pids = []
         for sib_id in valid_sib_ids:
-            pdg_id = CascadeEvent.event_generator._lib.isib_pid2pdg(sib_id)
+            pdg_id = self.event_generator._lib.isib_pid2pdg(sib_id)
             valid_pids.append(pdg_id)
         
         self.valid_pids = set(valid_pids)
@@ -47,12 +46,12 @@ class CascadeEvent:
         self.factor_sigma = A * self.mass_barn
 
     def _sigma_wrapper(self):
-        k = CascadeEvent.event_generator.event_kinematics
+        k = self.event_generator.event_kinematics
 
         if k.p1pdg not in self.valid_pids:
             raise Exception("Not a valid pdg for beam")
 
-        sigma_hair = CascadeEvent.event_generator._lib.sib_sigma_hair
+        sigma_hair = self.event_generator._lib.sib_sigma_hair
 
         kabs = abs(k.p1pdg)
         if 1000 < kabs < 10000:
@@ -67,7 +66,7 @@ class CascadeEvent:
         return sigma
 
     def get_average_xlength(self, pid, energy):
-        CascadeEvent.event_generator.event_kinematics = impy.kinematics.FixedTarget(
+        self.event_generator.event_kinematics = impy.kinematics.FixedTarget(
             energy, int(pid), (14, 7)
         )
         sigma = 1 / self._sigma_wrapper()
