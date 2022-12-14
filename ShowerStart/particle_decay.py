@@ -52,6 +52,13 @@ class ParticleDecay:
     from scipy.interpolate import interp1d
 
     def __init__(self, mceq_db, pid, etot):
+        """Initialization
+
+        Args:
+            mceq_db (MCEqRun): _description_
+            pid (int): pdg id of particle
+            etot (float): total energy of particle in GeV
+        """
         self.mceq_db = mceq_db
         self.pythia_pdata = self.PYTHIAParticleData()
         self.pid = None
@@ -61,11 +68,18 @@ class ParticleDecay:
     def set_decayed_particle(self, pid, etot):
         self.reset_pid_etot = False
         self.reset_mceq_data = False
+        self.stable = False
         if self.pid != pid or self.etot != etot:
             self.reset_pid_etot = True
             self.reset_mceq_data = True
 
         if self.reset_pid_etot:
+            
+            ctau = self.pythia_pdata.ctau(pid)
+            if ctau == 0 or ctau == np.inf:
+                self.stable = True
+                return
+            
             self.pid = pid
             self.mass = self.pythia_pdata.mass(self.pid)
             self.etot = etot
@@ -73,7 +87,7 @@ class ParticleDecay:
             self.ekin = self.etot - self.mass
             gamma = self.etot / self.mass
             beta_gamma = np.sqrt((gamma + 1) * (gamma - 1))
-            self.decay_length = beta_gamma * self.pythia_pdata.ctau(pid)
+            self.decay_length = beta_gamma * ctau
 
             self.reset_pid_etot = False
 
@@ -82,6 +96,9 @@ class ParticleDecay:
         for a particle set in constructor `ParticleDecay` or
         reset in `set_decayed_particle(pid, etot)` method
         """
+        if self.stable:
+            return None
+        
         random_value = -np.log(1 - np.random.rand(1))
         return self.decay_length * random_value
 
@@ -90,6 +107,10 @@ class ParticleDecay:
         for a particle set in constructor `ParticleDecay` or
         reset in `set_decayed_particle(pid, etot)` method
         """
+
+        if self.stable:
+            return None
+
 
         if self.reset_mceq_data:
             self._set_mceq_data()
@@ -182,3 +203,12 @@ class DecayLength:
     def get_decay_length(self):
         random_value = -np.log(1 - np.random.rand(1))
         return self.decay_length * random_value
+
+
+
+# Example of usage:
+# from particle_decay import MCEqDBFactory, ParticleDecay
+# mceq_db = MCEqDBFactory().get_db()
+# pdecay =  ParticleDecay(mceq_db, pid = 11, etot = 1000)
+# pdecay.get_decay_length()
+# pdecay.get_decay_products()

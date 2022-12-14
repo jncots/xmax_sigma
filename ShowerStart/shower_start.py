@@ -141,27 +141,6 @@ class CascadeDriver:
         return self.iterations
 
 
-class DecayLength:
-    from particletools.tables import PYTHIAParticleData
-
-    def __init__(self, pdg, energy):
-        pythia_pdata = self.PYTHIAParticleData()
-        self.c_decay_time = pythia_pdata.ctau(pdg)
-        self.mass = pythia_pdata.mass(pdg)
-        self.set_energy(energy)
-
-    def set_energy(self, energy):
-        gamma = energy / self.mass
-        beta_gamma = np.sqrt((gamma + 1) * (gamma - 1))
-        self.decay_length = beta_gamma * self.c_decay_time
-
-    def _random_value(self):
-        return -np.log(1 - random.random())
-
-    def get_decay_length(self):
-        return self.decay_length * self._random_value()
-
-
 class ConvertX2H:
     from MCEq.geometry.density_profiles import CorsikaAtmosphere
 
