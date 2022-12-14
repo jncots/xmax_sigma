@@ -7,9 +7,6 @@ import math
 
 @dataclasses.dataclass
 class CascadeParticle:
-    id: int
-    parent_id: int
-    interacted: bool
     pid: int
     energy: float
     xlength: float
@@ -21,15 +18,14 @@ class CascadeEvent:
     mass_barn = proton_mass_g / mbarn_in_cm2
 
     def __init__(self, emin_threshold):
-        
+
         self.emin_threshold = emin_threshold
-        self.id_in_shower = 0
-        
+
         ekin = impy.kinematics.FixedTarget(10, "proton", (14, 7))
         self.event_generator = impy.models.Sibyll23d(ekin)
-        
+
         self._set_average_A(14)
-            
+
         valid_sib_ids = [7, 8, 9, 10, 11, 12, 13, 14, -13, -14]
         valid_sib_ids.extend([34, 35, 36, 37, 38, 39])
         valid_sib_ids.extend([59, 60, 71, 72, 74, 75])
@@ -38,7 +34,7 @@ class CascadeEvent:
         for sib_id in valid_sib_ids:
             pdg_id = self.event_generator._lib.isib_pid2pdg(sib_id)
             valid_pids.append(pdg_id)
-        
+
         self.valid_pids = set(valid_pids)
 
     def _set_average_A(self, A):
@@ -77,11 +73,6 @@ class CascadeEvent:
         return -np.log(1 - random.random()) * xlen
 
     def get_generation(self, shower_particle):
-
-        # Means that we used the particle
-        # Do we need this ?
-        shower_particle.interacted = True
-
         if shower_particle.energy < self.emin_threshold:
             return None
 
@@ -94,27 +85,30 @@ class CascadeEvent:
             return None
 
         xlength += shower_particle.xlength
-        # print(f"Shower pid {shower_particle.pid}")
         event = next(self.event_generator(1)).final_state()
 
         inter_particles = []
         final_particles = []
-        
 
         for i in range(len(event)):
             ev = event[i]
-            # The id_in_shower for initial particle is 0
-            # So the last id_in_shower is also number of generated particles so far
-            self.id_in_shower += 1
-            cas_prt = CascadeParticle(
-                self.id_in_shower, shower_particle.id, False, ev.pid, ev.en, xlength
-            )
+            cas_prt = CascadeParticle(ev.pid, ev.en, xlength)
             if (ev.en < self.emin_threshold) or (ev.pid not in self.valid_pids):
                 final_particles.append(cas_prt)
             else:
-                inter_particles.append(cas_prt)   
+                inter_particles.append(cas_prt)
 
         return inter_particles, final_particles
+
+    def interaction_or_decay_event():
+        interaction_length = get_interaction_length()
+        decay_length = get_decay_length()
+
+        if decay_length:
+            if interaction_length < decay_length:
+                return interaction_length, get_interaction_event()
+            else:
+                return decay_length, get_decay_event()
 
 
 class CascadeDriver:
@@ -124,14 +118,14 @@ class CascadeDriver:
         self.final_products = []
 
     def run(self, pid, energy):
-        initial_particle = CascadeParticle(0, 0, False, pid, energy, 0)
+        initial_particle = CascadeParticle(pid, energy, 0)
         pstack = [initial_particle]
         while pstack:
             self.iterations += 1
-            # if self.iterations % 10000:
+            # if self.iterations % 100000:
             #     print(f"Pstack = {len(pstack)}, Fstack = {len(self.final_products)},"
             #           f" Iterations = {self.iterations}\r")
-            
+
             cur_particle = pstack.pop()
             current_generation = self.shower_generator.get_generation(cur_particle)
             if current_generation:
@@ -139,7 +133,6 @@ class CascadeDriver:
                 self.final_products.extend(current_generation[1])
             else:
                 self.final_products.append(cur_particle)
-                
 
     def get_particles(self):
         return self.final_products
@@ -148,15 +141,47 @@ class CascadeDriver:
         return self.iterations
 
 
+class DecayLength:
+    from particletools.tables import PYTHIAParticleData
+
+    def __init__(self, pdg, energy):
+        pythia_pdata = self.PYTHIAParticleData()
+        self.c_decay_time = pythia_pdata.ctau(pdg)
+        self.mass = pythia_pdata.mass(pdg)
+        self.set_energy(energy)
+
+    def set_energy(self, energy):
+        gamma = energy / self.mass
+        beta_gamma = np.sqrt((gamma + 1) * (gamma - 1))
+        self.decay_length = beta_gamma * self.c_decay_time
+
+    def _random_value(self):
+        return -np.log(1 - random.random())
+
+    def get_decay_length(self):
+        return self.decay_length * self._random_value()
+
+
 class ConvertX2H:
     from MCEq.geometry.density_profiles import CorsikaAtmosphere
+
+    length_units = {"cm": 1, "m": 1e2, "km": 1e5}
 
     def __init__(self):
         self.cka_obj = self.CorsikaAtmosphere("SouthPole", "December")
         self.cka_obj.set_theta(0.0)
+        self.length_unit = self.length_units["cm"]
 
     def set_theta(self, theta):
         self.cka_obj.set_theta(theta)
 
+    def set_length_unit(self, unit):
+        self.length_unit = self.length_units[unit]
+
     def __call__(self, x):
-        return self.cka_obj.X2h(x) / 1e5
+        return self.cka_obj.X2h(x) / self.length_unit
+
+    def get_length(self, x1, x2):
+        return (self.cka_obj.X2h(x2) - self.cka_obj.X2h(x1)) / (
+            np.cos(self.cka_obj.thrad) * self.length_unit
+        )
