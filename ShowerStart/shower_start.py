@@ -4,27 +4,175 @@ import numpy as np
 import dataclasses
 import math
 
+from abc import ABC, abstractmethod
+
 
 @dataclasses.dataclass
 class CascadeParticle:
     pid: int
     energy: float
-    xlength: float
+    xdepth: float
 
 
+class ParticleEvent(ABC):
+    
+    def __init__(self, particle):
+        self.set_particle(particle)
+
+    @abstractmethod
+    def set_particle(self, particle):
+        pass
+        
+    @abstractmethod    
+    def get_xdepth(self):
+        pass
+        
+    @abstractmethod    
+    def get_products(self):
+        pass
+
+
+class HadronEvent(ParticleEvent):
+    
+    mbarn_in_cm2 = 1e-27
+    proton_mass_g = 1.672621e-24
+    mass_barn = proton_mass_g / mbarn_in_cm2
+    
+    
+    def __init__(self, particle):
+        super().__init__(particle)
+        
+        ekin = impy.kinematics.FixedTarget(10, "proton", (14, 7))
+        self.event_generator = impy.models.Sibyll23d(ekin)
+
+        self.set_average_A(14)
+        self.valid_pids = self._get_valid_pids()
+        
+        
+    def set_particle(self, particle):
+        self.particle = particle
+         
+    def get_xdepth(self):
+        """Returns slant depth of next interaction or None
+        """
+        
+        self.last_xdepth = None
+        try:
+            average_xdepth = self.get_average_xdepth()
+        except Exception:
+            return None
+
+        if not average_xdepth or math.isnan(average_xdepth):
+            return None
+          
+        random_value = -np.log(1 - random.random())
+        self.last_xdepth = random_value * average_xdepth
+        return self.last_xdepth
+           
+    def get_products(self):       
+        if not self.last_xdepth:
+            return None
+               
+        total_xdepth = self.particle.xdepth + self.last_xdepth
+        event = next(self.event_generator(1)).final_state()
+
+        products = [] 
+        for particle in event:
+            products.append(CascadeParticle(particle.pid, particle.en, total_xdepth))    
+
+        return products
+    
+    def _get_valid_pids(self):
+        """Returns a set of valid pdg ids accepted by `Sibyll`
+        event generator
+        """
+        valid_sib_ids = [7, 8, 9, 10, 11, 12, 13, 14, -13, -14]
+        valid_sib_ids.extend([34, 35, 36, 37, 38, 39])
+        valid_sib_ids.extend([59, 60, 71, 72, 74, 75])
+        valid_sib_ids.extend([87, 88, 89, 99, 27])
+        valid_pids = []
+        for sib_id in valid_sib_ids:
+            pdg_id = self.event_generator._lib.isib_pid2pdg(sib_id)
+            valid_pids.append(pdg_id)
+        
+        return set(valid_pids) 
+    
+    def set_average_A(self, A):
+        self.average_A = A
+        self.factor_sigma = self.average_A * self.mass_barn
+
+    def _sigma_wrapper(self):
+        k = self.event_generator.event_kinematics
+
+        if k.p1pdg not in self.valid_pids:
+            raise Exception("Not a valid pdg for beam")
+
+        sigma_hair = self.event_generator._lib.sib_sigma_hair
+
+        kabs = abs(k.p1pdg)
+        if 1000 < kabs < 10000:
+            sigproj = 1
+        elif kabs % 1000 < 300:
+            sigproj = 2
+        else:
+            sigproj = 3
+        sigma = sigma_hair(sigproj, k.ecm)
+        if isinstance(sigma, tuple):
+            return sigma[0]
+        return sigma  
+    
+    
+    def get_average_xdepth(self):
+        self.event_generator.event_kinematics = impy.kinematics.FixedTarget(
+            self.particle.energy, int(self.particle.pid), (14, 7)
+        )
+        return self.factor_sigma / self._sigma_wrapper()       
+          
+
+class DecayEvent(ParticleEvent):
+    from particle_decay import MCEqDBFactory, ParticleDecay
+    
+    def __init__(self, particle):
+        self.pdecay =  self.ParticleDecay(self.MCEqDBFactory().get_db(),
+                                     particle.pid, particle.energy)
+        
+        self.xh_conversion = ConvertX2H()
+        super().__init__(particle)
+        
+    
+    def set_particle(self, particle):
+        self.particle = particle
+        self.pdecay.set_decayed_particle(self.particle.pid, self.particle.energy)
+        
+        
+    def get_xdepth(self):
+        
+        
+    @abstractmethod    
+    def get_products(self):
+        pass
+    
+
+    
+                    
+        
+        
 class CascadeEvent:
     mbarn_in_cm2 = 1e-27
     proton_mass_g = 1.672621e-24
     mass_barn = proton_mass_g / mbarn_in_cm2
 
-    def __init__(self, emin_threshold):
+    def __init__(self, emin_threshold, decay_particle):
+
+        self.decay_particle = decay_particle
+        self.xh_conversion = ConvertX2H()
 
         self.emin_threshold = emin_threshold
 
         ekin = impy.kinematics.FixedTarget(10, "proton", (14, 7))
         self.event_generator = impy.models.Sibyll23d(ekin)
 
-        self._set_average_A(14)
+        self.set_average_A(14)
 
         valid_sib_ids = [7, 8, 9, 10, 11, 12, 13, 14, -13, -14]
         valid_sib_ids.extend([34, 35, 36, 37, 38, 39])
@@ -37,9 +185,9 @@ class CascadeEvent:
 
         self.valid_pids = set(valid_pids)
 
-    def _set_average_A(self, A):
+    def set_average_A(self, A):
         self.average_A = A
-        self.factor_sigma = A * self.mass_barn
+        self.factor_sigma = self.average_A * self.mass_barn
 
     def _sigma_wrapper(self):
         k = self.event_generator.event_kinematics
@@ -100,15 +248,78 @@ class CascadeEvent:
 
         return inter_particles, final_particles
 
-    def interaction_or_decay_event():
-        interaction_length = get_interaction_length()
-        decay_length = get_decay_length()
+    def get_interaction_length(self, shower_particle):
+        try:
+            xlength = self.get_xlength(shower_particle.pid, shower_particle.energy)
+        except Exception:
+            xlength = None
+
+        if not xlength or math.isnan(xlength):
+            xlength = None
+            
+        return xlength    
+        
+    def get_decay_length(self, shower_particle):
+        self.decay_particle.set_decayed_particle(
+            shower_particle.pid, shower_particle.energy
+        )
+        length = self.decay_particle.get_decay_length()
+        
+        if length:
+            return self.xh_conversion.get_delta_xdepth(shower_particle.xlength, length)
+        else:
+            return None     
+    
+    
+    def get_event_particles(self, shower_particle):
+        
+            
+    
+    def get_interaction_event(self, shower_particle, xlength):
+        xlength += shower_particle.xlength
+        event = next(self.event_generator(1)).final_state()
+
+        inter_particles = []
+        final_particles = []
+
+        for i in range(len(event)):
+            ev = event[i]
+            cas_prt = CascadeParticle(ev.pid, ev.en, xlength)
+            if (ev.en < self.emin_threshold) or (ev.pid not in self.valid_pids):
+                final_particles.append(cas_prt)
+            else:
+                inter_particles.append(cas_prt)
+
+        return inter_particles, final_particles
+
+    def get_decay_event(self, shower_particle, xlength):
+
+        self.decay_particle.set_decayed_particle(
+            shower_particle.pid, shower_particle.energy
+        )
+        
+        inter_particles = []
+        final_particles = []
+        
+        for product in self.decay_particle.get_decay_products():
+            p_pid = product[0]
+            p_energy = product[1]
+            cas_prt = CascadeParticle(p_pid, p_energy, xlength)
+            if (p_energy < self.emin_threshold) or (p_pid not in self.valid_pids):
+                final_particles.append(cas_prt)
+            else:
+                inter_particles.append(cas_prt)
+        return inter_particles, final_particles            
+
+    def interaction_or_decay_event(self, shower_particle, xlength):
+        interaction_length = self.get_interaction_length(shower_particle, xlength)
+        decay_length = self.get_decay_length(shower_particle, xlength)
 
         if decay_length:
             if interaction_length < decay_length:
-                return interaction_length, get_interaction_event()
+                return self.get_interaction_event(shower_particle, interaction_length)
             else:
-                return decay_length, get_decay_event()
+                return self.get_decay_event(shower_particle, decay_length)
 
 
 class CascadeDriver:
@@ -161,6 +372,33 @@ class ConvertX2H:
         return self.cka_obj.X2h(x) / self.length_unit
 
     def get_length(self, x1, x2):
+        """Return a length between atmospheric depth x1 and x2
+        x1 < x2. Because X2h coverts only to height, zenith angle 
+        is also taken into account.
+
+        Args:
+            x1 (float): _description_
+            x2 (float): _description_
+
+        Returns:
+            float: length in a set length units
+        """
         return (self.cka_obj.X2h(x2) - self.cka_obj.X2h(x1)) / (
             np.cos(self.cka_obj.thrad) * self.length_unit
         )
+        
+    def get_delta_xdepth(self, x1, length):
+        """Returns delta x = x2 - x1 for the path starting at point
+        x1 and run `length` cm
+
+        Args:
+            x1 (_type_): _description_
+            length (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        h1 = self.cka_obj.X2h(x1)
+        h2 = h1 - length * np.cos(self.cka_obj.thrad)
+        x2 = self.cka_obj.h2X(h2)
+        return x2 - x1
