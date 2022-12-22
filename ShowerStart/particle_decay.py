@@ -1,5 +1,6 @@
 import numpy as np
 from MCEq import particlemanager
+from pythia_decay import DecayByPythia
 
 
 def rejection_sampler(p, xbounds, pmax):
@@ -59,6 +60,9 @@ class ParticleDecay:
             pid (int): pdg id of particle
             etot (float): total energy of particle in GeV
         """
+
+        self.decay_event = DecayByPythia()
+
         self.mceq_db = mceq_db
         self.pythia_pdata = self.PYTHIAParticleData()
         self.pid = None
@@ -74,12 +78,12 @@ class ParticleDecay:
             self.reset_mceq_data = True
 
         if self.reset_pid_etot:
-            
+
             ctau = self.pythia_pdata.ctau(pid)
             if ctau == 0 or ctau == np.inf:
                 self.stable = True
                 return
-            
+
             self.pid = pid
             self.mass = self.pythia_pdata.mass(self.pid)
             self.etot = etot
@@ -98,11 +102,17 @@ class ParticleDecay:
         """
         if self.stable:
             return None
-        
+
         random_value = -np.log(1 - np.random.rand(1))
         return self.decay_length * random_value
 
     def get_decay_products(self):
+        if self.stable:
+            return None
+
+        return self.decay_event.get_decayed_products(self.pid, self.etot)
+
+    def get_decay_products_mceq(self):
         """Returns list of decay products `[(pid_1, etot_1),...]`
         for a particle set in constructor `ParticleDecay` or
         reset in `set_decayed_particle(pid, etot)` method
@@ -111,9 +121,13 @@ class ParticleDecay:
         if self.stable:
             return None
 
-
         if self.reset_mceq_data:
-            self._set_mceq_data()
+
+            try:
+                self._set_mceq_data()
+            except Exception:
+                return list((self.parent_particle.pdg_id))
+
             self.reset_mceq_data = False
 
         self.xleft = 1.0  # part of kinetic energy left for child particle
@@ -174,7 +188,7 @@ class ParticleDecay:
             self.pdf_max,
             (self.xgrid[0], self.xleft),
         )
- 
+
         child_mass = self.pythia_pdata.mass(child_pid)
         # !!Probably wrong approach:
         # We use kinetic energy left from other particles
@@ -203,7 +217,6 @@ class DecayLength:
     def get_decay_length(self):
         random_value = -np.log(1 - np.random.rand(1))
         return self.decay_length * random_value
-
 
 
 # Example of usage:

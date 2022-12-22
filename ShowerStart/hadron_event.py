@@ -3,6 +3,7 @@ import numpy as np
 import math
 
 import impy
+from impy.kinematics import EventFrame
 from particle_event import ParticleEvent, CascadeParticle
 
 
@@ -16,7 +17,7 @@ class HadronEvent(ParticleEvent):
     def __init__(self, particle):
         super().__init__(particle)
         
-        ekin = impy.kinematics.FixedTarget(10, "proton", (14, 7))
+        ekin = impy.kinematics.FixedTarget(20000, "proton", (14, 7))
         self.event_generator = impy.models.Sibyll23d(ekin)
 
         self.set_average_A(14)
@@ -51,8 +52,8 @@ class HadronEvent(ParticleEvent):
         event = next(self.event_generator(1)).final_state()
 
         products = [] 
-        for particle in event:
-            products.append(CascadeParticle(int(particle.pid), particle.en, total_xdepth))    
+        for i in range(len(event.pid)):
+            products.append(CascadeParticle(int(event.pid[i]), event.en[i], total_xdepth))    
 
         self.last_xdepth = None
         return products
@@ -77,7 +78,7 @@ class HadronEvent(ParticleEvent):
         self.factor_sigma = self.average_A * self.mass_barn
 
     def _sigma_wrapper(self):
-        k = self.event_generator.event_kinematics
+        k = self.event_generator.kinematics
 
         if int(k.p1) not in self.valid_pids:
             raise Exception("Not a valid pdg for beam")
@@ -98,7 +99,7 @@ class HadronEvent(ParticleEvent):
     
     
     def get_average_xdepth(self):
-        self.event_generator.event_kinematics = impy.kinematics.FixedTarget(
+        self.event_generator.kinematics = impy.kinematics.FixedTarget(
             self.particle.energy, int(self.particle.pid), (14, 7)
         )
         return self.factor_sigma / self._sigma_wrapper() 

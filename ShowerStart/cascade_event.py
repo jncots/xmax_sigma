@@ -12,6 +12,22 @@ class CascadeEvent:
         self.hadron_event = HadronEvent(self.particle)
         self.decay_event = DecayEvent(self.particle)
 
+    # def _get_event(self, particle):
+    #     """Without decay. Only for debugging
+
+    #     Args:
+    #         particle (_type_): _description_
+
+    #     Returns:
+    #         _type_: _description_
+    #     """
+    #     self.hadron_event.set_particle(particle)
+    #     xdepth_hadron = self.hadron_event.get_xdepth()
+        
+    #     if not xdepth_hadron:
+    #         return None
+    #     return self.hadron_event.get_products()
+
     def _get_event(self, particle):
         
         self.hadron_event.set_particle(particle)
@@ -19,11 +35,21 @@ class CascadeEvent:
         
         xdepth_hadron = self.hadron_event.get_xdepth()
         xdepth_decay = self.decay_event.get_xdepth()
+        
+        if (not xdepth_decay) and (not xdepth_hadron):
+            return None
 
-        if xdepth_decay and xdepth_decay < xdepth_hadron:
+        if xdepth_decay and (not xdepth_hadron):
             return self.decay_event.get_products()
-        else:
+        
+        if (not xdepth_decay) and xdepth_hadron:
             return self.hadron_event.get_products()
+        
+        if xdepth_decay and xdepth_hadron:
+            if xdepth_decay < xdepth_hadron:
+                return self.decay_event.get_products()
+            else:
+                return self.hadron_event.get_products()         
                 
     def get_event_particles(self, cur_particle):
         
