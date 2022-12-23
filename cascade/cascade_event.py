@@ -1,5 +1,6 @@
 from hadron_event import HadronEvent
 from decay_event import DecayEvent
+from xdepth_conversion import XdepthConversion
 
 
 
@@ -11,7 +12,22 @@ class CascadeEvent:
         self.particle = particle
         self.hadron_event = HadronEvent(self.particle)
         self.decay_event = DecayEvent(self.particle)
+        
+        max_xdepth = self._get_max_depth()
+        print(f"CascadeEvent max_xdepth = {max_xdepth}")     
+        self.hadron_event.set_max_xdepth(max_xdepth)
+        self.decay_event.set_max_xdepth(max_xdepth)
 
+        self._decay_on = True
+
+    def _get_max_depth(self):
+        xconv = XdepthConversion()
+        return xconv.get_max_xdepth()
+        
+    
+    def _reset_ncalls(self):
+        self.hadron_event._get_prod_ncalls = 0
+        self.decay_event._get_prod_ncalls = 0
     # def _get_event(self, particle):
     #     """Without decay. Only for debugging
 
@@ -27,14 +43,20 @@ class CascadeEvent:
     #     if not xdepth_hadron:
     #         return None
     #     return self.hadron_event.get_products()
+    
+    def set_decay_on(self, decay_on):
+        self._decay_on = decay_on
 
     def _get_event(self, particle):
         
+        if self._decay_on:
+            self.decay_event.set_particle(particle)
+            xdepth_decay = self.decay_event.get_xdepth()
+        else:
+            xdepth_decay = None    
+               
         self.hadron_event.set_particle(particle)
-        self.decay_event.set_particle(particle)
-        
         xdepth_hadron = self.hadron_event.get_xdepth()
-        xdepth_decay = self.decay_event.get_xdepth()
         
         if (not xdepth_decay) and (not xdepth_hadron):
             return None

@@ -1,6 +1,7 @@
 import numpy as np
 from MCEq.geometry.density_profiles import CorsikaAtmosphere
 
+
 class XdepthConversion:
     length_units = {"cm": 1, "m": 1e2, "km": 1e5}
 
@@ -16,13 +17,24 @@ class XdepthConversion:
         self.length_unit = self.length_units[unit]
 
     def convert_x2h(self, x):
-        """Convert xdepth to height
-        """
+        """Convert xdepth to height"""
+        if x < 1e-7:
+            x = 1e-7
         return self.cka_obj.X2h(x) / self.length_unit
+
+    def convert_h2x(self, x):
+        """Convert xdepth to height"""
+        return self.cka_obj.h2X(x * self.length_unit)
+
+    def get_max_xdepth(self):
+        return self.convert_h2x(0)
+    
+    def get_max_height(self):
+        return self.convert_x2h(0)
 
     def get_length(self, x1, x2):
         """Return a length between atmospheric depth x1 and x2
-        x1 < x2. Because X2h coverts only to height, zenith angle 
+        x1 < x2. Because X2h coverts only to height, zenith angle
         is also taken into account.
 
         Args:
@@ -32,15 +44,38 @@ class XdepthConversion:
         Returns:
             float: length in a set length units
         """
-        return (self.cka_obj.X2h(x2) - self.cka_obj.X2h(x1)) / (
-            np.cos(self.cka_obj.thrad) * self.length_unit
+        return (self.convert_x2h(x1) - self.convert_x2h(x2)) / (
+            np.cos(self.cka_obj.thrad)
         )
-        
+
     def get_delta_xdepth(self, x1, length):
         """Returns delta x = x2 - x1 for the path starting at point
         x1 and run `length` cm
         """
-        h1 = self.cka_obj.X2h(x1)
+        h1 = self.convert_x2h(x1)
         h2 = h1 - length * np.cos(self.cka_obj.thrad)
-        x2 = self.cka_obj.h2X(h2)
+        if h2 < 0:
+            return 1e100
+        x2 = self.convert_h2x(h2)
         return x2 - x1
+
+
+xconv = XdepthConversion()
+xconv.set_length_unit("km")
+xconv.set_theta(60)
+print(xconv.convert_x2h(0))
+print(xconv.get_max_height())
+print(xconv.get_delta_xdepth(0, 300))
+# xconv.set_theta(60)
+# # print(xconv.convert_x2h(100))
+# print(f"x = 100 = {xconv.convert_x2h(100)} km")
+# print(f"x = 700 = {xconv.convert_x2h(700)} km")
+
+# print(f"h = 15km = {xconv.convert_h2x(xconv.convert_x2h(100))}")
+
+
+# print(xconv.get_length(500, 700))
+# print(xconv.get_delta_xdepth(500, xconv.get_length(500, 700)))
+# print(xconv.get_delta_xdepth(300, 0.5))
+# print(xconv.convert_x2h(300))
+# print(xconv.convert_x2h(300 + 311))

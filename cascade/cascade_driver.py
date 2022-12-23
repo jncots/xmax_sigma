@@ -7,6 +7,7 @@ from particle_event import CascadeParticle
 class CascadeDriver:
     def __init__(self, cascade_event):
         self.cascade_event = cascade_event
+        self.cascade_event._reset_ncalls()
         self.iterations = 0
         self.final_products = []
 
@@ -25,6 +26,11 @@ class CascadeDriver:
                 self.final_products.extend(current_generation[1])
             else:
                 self.final_products.append(cur_particle)
+                
+        self.num_decays = self.cascade_event.decay_event._get_prod_ncalls
+        self.num_interactions = self.cascade_event.hadron_event._get_prod_ncalls
+        self.num_events = self.iterations
+        self.num_final_particles = len(self.final_products)     
 
     def get_particles(self):
         return self.final_products

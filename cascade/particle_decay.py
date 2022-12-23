@@ -1,6 +1,7 @@
 import numpy as np
 from MCEq import particlemanager
 from pythia_decay import DecayByPythia
+import random
 
 
 def rejection_sampler(p, xbounds, pmax):
@@ -79,7 +80,7 @@ class ParticleDecay:
 
         if self.reset_pid_etot:
 
-            ctau = self.pythia_pdata.ctau(pid)
+            ctau = float(self.pythia_pdata.ctau(pid))
             if ctau == 0 or ctau == np.inf:
                 self.stable = True
                 return
@@ -103,7 +104,7 @@ class ParticleDecay:
         if self.stable:
             return None
 
-        random_value = -np.log(1 - np.random.rand(1))
+        random_value = -np.log(1 - random.random())
         return self.decay_length * random_value
 
     def get_decay_products(self):
@@ -215,7 +216,7 @@ class DecayLength:
         self.decay_length = beta_gamma * self.c_decay_time
 
     def get_decay_length(self):
-        random_value = -np.log(1 - np.random.rand(1))
+        random_value = -np.log(1 - random.random())
         return self.decay_length * random_value
 
 

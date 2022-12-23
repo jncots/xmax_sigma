@@ -1,9 +1,9 @@
 import impy
-from impy.common import EventData
 from impy.util import mass, energy2momentum
 import dataclasses
-import numpy as np
-from particle import Particle, PDGID
+from pathlib import Path
+
+impy_path = Path(impy.__file__).parent
 
 
 @dataclasses.dataclass
@@ -68,15 +68,23 @@ class Pythia8DecayAfterburner:
 
     def _init_pythia(self):
 
-        ekin = impy.kinematics.CenterOfMass(1 * impy.constants.TeV, "proton", "proton")
-        generator = impy.models.Pythia8(ekin)
-        self.pythia = generator._lib.pythia
+        # ekin = impy.kinematics.CenterOfMass(1 * impy.constants.TeV, "proton", "proton")
+        # generator = impy.models.Pythia8(ekin)
+        import importlib
+        from random import randint
+        lib = importlib.import_module(f"impy.models._pythia8")
+        xml_path = impy_path / "iamdata/Pythia8/xmldoc"
+        self.pythia = lib.Pythia(str(xml_path), False)
+        seed = randint(1, 10000000)
+        self.pythia.settings.resetAll()
+        self.pythia.readString("Random:setSeed = on")
+        self.pythia.readString(f"Random:seed = {seed}") 
+        self.pythia.readString("Print:quiet = on")
         self.pythia.readString("ProcessLevel:all = off")
         self.pythia.readString("ParticleDecays:tau0Max = 1e100")
         # Set muons unstable
         # self.pythia.particleData.mayDecay(13, True)
         self.pythia.init()
-        print(f"Finish of initialization")
 
     def __call__(self, event):
 
@@ -127,8 +135,11 @@ class DecayByPythia:
 
 
 # decay_event = DecayByPythia()
+# print(decay_event.get_decayed_products(111, 1e3))
 
-# print(decay_event.get_decayed_products(211, 1e3))
+# import importlib
+# lib = importlib.import_module(f"impy.models._pythia8")
+# lib.pythia = lib.Pythia("/hetghome/antonpr/impy/src/impy/iamdata/Pythia8/xmldoc/", False)
 
 # event = SimpleEvent()
 # event.append_1dz(3222, 1e3)
