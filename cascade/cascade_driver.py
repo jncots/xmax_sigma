@@ -15,9 +15,9 @@ class CascadeDriver:
         pstack = [initial_particle]
         while pstack:
             self.iterations += 1
-            # if self.iterations % 100000:
-            #     print(f"Pstack = {len(pstack)}, Fstack = {len(self.final_products)},"
-            #           f" Iterations = {self.iterations}\r")
+            if self.iterations % 100000:
+                print(f"Pstack = {len(pstack)}, Fstack = {len(self.final_products)},"
+                      f" Iterations = {self.iterations}\r")
 
             cur_particle = pstack.pop()
             current_generation = self.cascade_event.get_event_particles(cur_particle)

@@ -2,8 +2,8 @@ import random
 import numpy as np
 import math
 
-import impy
-from impy.kinematics import EventFrame
+import chromo
+from chromo.kinematics import EventFrame
 from particle_event import ParticleEvent, CascadeParticle
 
 
@@ -16,8 +16,8 @@ class HadronEvent(ParticleEvent):
     def __init__(self, particle):
         super().__init__(particle)
 
-        ekin = impy.kinematics.FixedTarget(20000, "proton", (14, 7))
-        self.event_generator = impy.models.Sibyll23d(ekin)
+        ekin = chromo.kinematics.FixedTarget(20000, "proton", (14, 7))
+        self.event_generator = chromo.models.Sibyll23d(ekin)
 
         self._get_prod_ncalls = 0
         self.set_average_A(14)
@@ -30,6 +30,10 @@ class HadronEvent(ParticleEvent):
         """Returns slant depth of next interaction or None"""
 
         self.last_xdepth = None
+
+        if self.particle.pid not in self.valid_pids:
+            return None
+
         try:
             average_xdepth = self.get_average_xdepth()
         except Exception:
@@ -106,7 +110,7 @@ class HadronEvent(ParticleEvent):
         return sigma
 
     def get_average_xdepth(self):
-        self.event_generator.kinematics = impy.kinematics.FixedTarget(
+        self.event_generator.kinematics = chromo.kinematics.FixedTarget(
             self.particle.energy, int(self.particle.pid), (14, 7)
         )
         return self.factor_sigma / self._sigma_wrapper()

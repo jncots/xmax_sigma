@@ -60,6 +60,5 @@ class DecayEvent(ParticleEvent):
 
 
 
-de = DecayEvent(CascadeParticle(111, 1e3, 100))
-
-print(de.get_xdepth())
+# de = DecayEvent(CascadeParticle(111, 1e3, 100))
+# print(de.get_xdepth())

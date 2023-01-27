@@ -1,79 +1,19 @@
-import impy
-from impy.util import mass, energy2momentum
-import dataclasses
+import chromo
+from chromo.util import energy2momentum
 from pathlib import Path
+from particle_event import CascadeParticle
 
-impy_path = Path(impy.__file__).parent
-
-
-@dataclasses.dataclass
-class SimpleEvent:
-    pid = []
-    status = []
-    px = []
-    py = []
-    pz = []
-    en = []
-    m = []
-    tau = []
-
-    def append(self, pid, status, px, py, pz, en, m, tau):
-        self.pid.append(pid)
-        self.status.append(status)
-        self.px.append(px)
-        self.py.append(py)
-        self.pz.append(pz)
-        self.en.append(en)
-        self.m.append(m)
-        self.tau.append(tau)
-
-    def append_1dz(self, pid, energy, *, status=1):
-        self.pid.append(pid)
-        self.status.append(status)
-        self.en.append(energy)
-        m = mass(pid)
-        self.m.append(m)
-        self.pz.append(energy2momentum(energy, m))
-        self.px.append(0)
-        self.py.append(0)
-        self.tau.append(0)
-
-    def __len__(self):
-        return len(self.pid)
-
-    def slice_it(self, arg):
-        evt = SimpleEvent()
-        evt.pid = self.pid[arg]
-        evt.status = self.status[arg]
-        evt.px = self.px[arg]
-        evt.py = self.py[arg]
-        evt.pz = self.pz[arg]
-        evt.en = self.en[arg]
-        evt.m = self.m[arg]
-        evt.tau = self.tau[arg]
-        return evt
-
-    def pid_en_view(self):
-        view = []
-        for i in range(len(self.pid)):
-            view.append((self.pid[i], self.en[i]))
-
-        return view
-
+chormo_path = Path(chromo.__file__).parent
 
 class Pythia8DecayAfterburner:
-    def __init__(self, stable_list):
-        self.stable_list = stable_list
+    def __init__(self):
         self._init_pythia()
 
     def _init_pythia(self):
-
-        # ekin = impy.kinematics.CenterOfMass(1 * impy.constants.TeV, "proton", "proton")
-        # generator = impy.models.Pythia8(ekin)
         import importlib
         from random import randint
-        lib = importlib.import_module(f"impy.models._pythia8")
-        xml_path = impy_path / "iamdata/Pythia8/xmldoc"
+        lib = importlib.import_module(f"chromo.models._pythia8")
+        xml_path = chormo_path / "iamdata/Pythia8/xmldoc"
         self.pythia = lib.Pythia(str(xml_path), False)
         seed = randint(1, 10000000)
         self.pythia.settings.resetAll()
@@ -82,130 +22,50 @@ class Pythia8DecayAfterburner:
         self.pythia.readString("Print:quiet = on")
         self.pythia.readString("ProcessLevel:all = off")
         self.pythia.readString("ParticleDecays:tau0Max = 1e100")
-        # Set muons unstable
-        # self.pythia.particleData.mayDecay(13, True)
         self.pythia.init()
 
     def __call__(self, event):
-
-        init_size = len(event)
-
-        for ip in range(len(event)):
-            if event.status[ip] != 1 or abs(event.pid[ip]) in self.stable_list:
-                continue
-
-            # Set particle to not final and simulate decay
-            event.status[ip] = 2
-            self.pythia.event.reset()
-            # put decaying particle
+        
+        new_event = []
+        
+        self.pythia.event.reset()
+        
+        for particle in event:
+            mp = self.pythia.particleData.findParticle(particle.pid).m0
             self.pythia.event.append(
-                int(event.pid[ip]),
+                particle.pid,
                 91,
                 0,
                 0,
-                event.px[ip],
-                event.py[ip],
-                event.pz[ip],
-                event.en[ip],
-                event.m[ip],
+                0,
+                0,
+                energy2momentum(particle.energy, mp),
+                particle.energy,
+                mp,
             )
-            self.pythia.particleData.mayDecay(int(event.pid[ip]), True)
-            # Decay it
-            self.pythia.forceHadronLevel()
-            for p in self.pythia.event:
-                if not p.isFinal():
-                    continue
-                event.append(p.id(), 1, p.px(), p.py(), p.pz(), p.e(), p.m(), p.tau())
-
-        return event.slice_it(slice(init_size, None, None))
-
-
-class DecayByPythia:
-    def __init__(self):
-        self.afterburner = Pythia8DecayAfterburner(
-            stable_list=[2212, 11, 12, 14, 15, 16, 22]
-        )
-
-    def get_decayed_products(self, pid, energy):
-        event = SimpleEvent()
-        event.append_1dz(pid, energy)
-        event = self.afterburner(event)
-        return event.pid_en_view()
-
-
-
-# decay_event = DecayByPythia()
-# print(decay_event.get_decayed_products(111, 1e3))
-
-# import importlib
-# lib = importlib.import_module(f"impy.models._pythia8")
-# lib.pythia = lib.Pythia("/hetghome/antonpr/impy/src/impy/iamdata/Pythia8/xmldoc/", False)
-
-# event = SimpleEvent()
-# event.append_1dz(3222, 1e3)
-# # event.append_1dz(-211, 1e3)
-# # event.append_1dz(2112, 1e3)
-# # event.append_1dz(11, 1e1)
-# # event.append_1dz(22, 1e2)
-
-# # event = event[1:]
-
-# afterburner = Pythia8DecayAfterburner(stable_list=[2212, 11, 12, 14, 15, 16, 22])
-# event = afterburner(event)
-
-# for ip in range(len(event)):
-#     print(
-#         f"id = {ip}, pid = {event.pid[ip]}, "
-#         f"status = {event.status[ip]}, "
-#         f"energy = {event.en[ip]}, "
-#         f"mass = {event.m[ip]}, "
-#         f"tau = {event.tau[ip]}"
-#     )
-
-# print(event.pid_en_view())
+            self.pythia.particleData.mayDecay(particle.pid, True)
+            
+        # Decay it
+        self.pythia.forceHadronLevel()
+        ievent = 0
+        for p in self.pythia.event:
+            if ievent == 0:
+                ievent += 1
+                continue
+        
+            if p.mother1() == 0:
+                if p.isFinal():
+                    new_event.append(event[ievent - 1])
+            else:
+                mother = event[p.mother1() - 1]
+                cp = CascadeParticle(pid = p.id(), 
+                                    energy = p.e(), 
+                                    xdepth = mother.xdepth, 
+                                    production_mode = 2,
+                                    generation_number = mother.generation_number + 1,
+                                    parent = [mother])    
+                new_event.append(cp)
+            ievent += 1
+        return new_event
 
 
-# pythia.readString("ProcessLevel:all = off")
-# pythia.readString("ParticleDecays:tau0Max = 1e100")
-#         # Set muons unstable
-# # pythia.particleData.mayDecay(13, True)
-# # pythia.init()
-
-# # pythia.event.reset()
-
-# event = SimpleEvent()
-# event.append_1dz(211, 1e3)
-# ip = 0
-
-# pythia.event.append(
-#     int(event.pid[ip]),
-#     91,
-#     0,
-#     0,
-#     event.px[ip],
-#     event.py[ip],
-#     event.pz[ip],
-#     event.en[ip],
-#     event.m[ip],
-# )
-
-# pythia.particleData.mayDecay(int(event.pid[ip]), True)
-# # Decay it
-# pythia.forceHadronLevel()
-# for p in pythia.event:
-#     # if not p.isFinal():
-#     #     continue
-#     event.append(p.id(), p.status(), p.px(), p.py(), p.pz(), p.e(), p.m(), p.tau())
-
-
-# for ip in range(len(event)):
-#     print(f"id = {ip}, pid = {event.pid[ip]}, "
-#           f"status = {event.status[ip]}, "
-#           f"energy = {event.en[ip]}, "
-#           f"mass = {event.m[ip]}, "
-#           f"tau = {event.tau[ip]}")
-
-
-# print(pythia.particleData.findParticle(13).m0)
-# # for event in generator(10):
-# #     print(event.pid)

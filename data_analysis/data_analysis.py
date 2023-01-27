@@ -233,25 +233,43 @@ class CascadeAnalysis:
             
         plt.legend()
         
-    def plot_height_list(self, pids=None, all_pids = None, nbins = 100, xrange = None):
+    def plot_height_list(self, pids=None, 
+                         all_pids = None, 
+                         nbins = 100, 
+                         xrange = None,
+                         energy_range = None):
         
         if not self._is_height:
             self.calc_height()
         
         height_data = []
-
+        
+        if energy_range:
+            energy_range = (energy_range[0]*1e-9, energy_range[1]*1e-9)
+            
+        
+        height_data_e = []
+        pid_data_e = []
+             
+        if energy_range:
+            for i, hh in enumerate(self.height_data):
+                if energy_range[0] <= self.energy_data[i] <= energy_range[1]:
+                    height_data_e.append(hh)
+                    pid_data_e.append(self.pid_data[i])
+        else:
+            height_data_e = self.height_data
+            pid_data_e = self.pid_data
+            
         if pids:
             for pid in pids:
                 height_data_pid = []
-                for i, ppid in enumerate(self.pid_data):
+                for i, ppid in enumerate(pid_data_e):
                     if ppid == pid:
-                        height_data_pid.append(self.height_data[i])
-                height_data.append(height_data_pid)        
-            
-        # if xrange:
-        #     xrange = (np.log10(en_range[0]*1e-9), np.log10(en_range[1]*1e-9))
-            
-        # print(en_range)            
+                        height_data_pid.append(height_data_e[i])
+                height_data.append(height_data_pid)
+        
+        
+        height_data_tot = height_data_e                     
 
         plt.title("Height distribution")
         plt.xlabel("Height, km") 
@@ -261,7 +279,7 @@ class CascadeAnalysis:
             plt.step(cnt[:-1], gr, label = f"{self.all_pdgs[pid]}")
             
         if all_pids:
-            gr, cnt = np.histogram(self.height_data, bins = nbins, range = xrange)
+            gr, cnt = np.histogram(height_data_tot, bins = nbins, range = xrange)
             plt.step(cnt[:-1], gr, label = f"all")
                 
             

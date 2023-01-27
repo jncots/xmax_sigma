@@ -1,6 +1,6 @@
 import numpy as np
 from MCEq import particlemanager
-from pythia_decay import DecayByPythia
+from pythia_decay import Pythia8DecayAfterburner
 import random
 
 
@@ -62,7 +62,7 @@ class ParticleDecay:
             etot (float): total energy of particle in GeV
         """
 
-        self.decay_event = DecayByPythia()
+        self.decay_event = Pythia8DecayAfterburner()
 
         self.mceq_db = mceq_db
         self.pythia_pdata = self.PYTHIAParticleData()
@@ -107,11 +107,11 @@ class ParticleDecay:
         random_value = -np.log(1 - random.random())
         return self.decay_length * random_value
 
-    def get_decay_products(self):
+    def get_decay_products(self, particle_list):
         if self.stable:
             return None
 
-        return self.decay_event.get_decayed_products(self.pid, self.etot)
+        return self.decay_event(particle_list)
 
     def get_decay_products_mceq(self):
         """Returns list of decay products `[(pid_1, etot_1),...]`
