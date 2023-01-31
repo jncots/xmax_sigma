@@ -61,3 +61,13 @@ if __name__ == "__main__":
     particle = CascadeParticle(2212, 1e8, 0)
 
     cas_driver.run(particle)
+    
+    finals = cas_driver.get_particles()
+    
+    sum_of_111 = 0
+    for p in finals:
+        if p.pid == 111:
+            sum_of_111 += 1
+            # print(p)
+            # input()
+    print(sum_of_111)

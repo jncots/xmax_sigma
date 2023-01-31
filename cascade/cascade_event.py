@@ -21,6 +21,8 @@ class CascadeEvent:
         self.decaying_particles = []
         self.final_particles = []
         
+        self.stable_particle_pids = [2212, 2112, 22, 11, 12, 13, 14]
+        
     
     def _reset_ncalls(self):
         self.hadron_event._get_prod_ncalls = 0
@@ -113,10 +115,20 @@ class CascadeEvent:
             self.run_empty_event(particle)
             return
         
-        for particle in products:
+        for particle in products:            
             if (particle.energy < self.emin_threshold):
-                particle.final_code = 2
-                self.final_particles.append(particle)
+                if abs(particle.pid) not in self.stable_particle_pids:
+                    self.decay_event.set_xdepth_decay(particle)
+                    
+                    if particle.xdepth_decay is None:
+                        particle.final_code = 3
+                        particle.xdepth = self.hadron_event.xdepth_max
+                        self.final_particles.append(particle)
+                    else:    
+                        self.decaying_particles.append(particle)
+                else:       
+                    particle.final_code = 2
+                    self.final_particles.append(particle)
             else:
                 self.interacting_particles.append(particle)
                     

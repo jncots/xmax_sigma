@@ -94,6 +94,7 @@ class Pythia8DecayAfterburner:
                         pid=p.id(),
                         energy=p.e(),
                         xdepth=mother.xdepth_decay,
+                        xdepth_decay = mother.xdepth_decay,
                         production_mode=2,
                         generation_number=mother.generation_number + 1,
                         parent=[mother],

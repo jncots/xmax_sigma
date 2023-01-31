@@ -63,7 +63,7 @@ class XdepthConversion:
 
 
 if __name__ == "__main__":
-    xconv = XdepthConversion(60)
+    xconv = XdepthConversion(0)
     xconv.set_length_unit("km")
     print(f"Max height = {xconv.get_max_height()}")
     print(f"Max depth = {xconv.get_max_xdepth()}")

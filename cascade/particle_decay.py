@@ -37,6 +37,14 @@ class ParticleDecay:
         if length is None:
             return None
         return self.xconv.get_delta_xdepth(particle.xdepth, length)
+    
+    def set_xdepth_decay(self, particle):
+        xdepth = self.get_xdepth(particle)
+        
+        if xdepth is None:
+            particle.xdepth_decay = None
+        else:    
+            particle.xdepth_decay = particle.xdepth + xdepth
 
     def get_decay_products(self, particle_list):
         return self.decay_event(particle_list)
