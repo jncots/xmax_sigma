@@ -1,228 +1,50 @@
 import numpy as np
-from MCEq import particlemanager
-from pythia_decay import Pythia8DecayAfterburner
 import random
-
-
-def rejection_sampler(p, xbounds, pmax):
-    while True:
-        x = np.random.rand(1) * (xbounds[1] - xbounds[0]) + xbounds[0]
-        y = np.random.rand(1) * pmax
-        if y <= p(x):
-            return x
-
-
-def rejection_sampler_rest(p, xbounds, pmax, xlimits):
-    """Restricted rejection_sampler
-
-    Args:
-        p (_type_): _description_
-        xbounds (_type_): _description_
-        pmax (_type_): _description_
-        xlimits (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    while True:
-        x = np.random.rand(1) * (xbounds[1] - xbounds[0]) + xbounds[0]
-        if not (xlimits[0] <= x <= xlimits[1]):
-            continue
-        y = np.random.rand(1) * pmax
-        if y <= p(x):
-            return x
-
-
-class MCEqDBFactory:
-    """Class for creation of MCEqRun instance which is used
-    as a database for particle decay information
-    """
-
-    from MCEq.core import MCEqRun
-    import crflux.models as pm
-
-    def get_db(self):
-        return self.MCEqRun(
-            interaction_model="SIBYLL2.3c",
-            primary_model=(self.pm.HillasGaisser2012, "H3a"),
-            theta_deg=0.0,
-        )
+from pythia_decay import Pythia8DecayAfterburner
+from particletools.tables import PYTHIAParticleData
+from xdepth_conversion import XdepthConversion
 
 
 class ParticleDecay:
-    from particletools.tables import PYTHIAParticleData
-    from scipy.interpolate import interp1d
-
-    def __init__(self, mceq_db, pid, etot):
+    def __init__(self):
         """Initialization
 
         Args:
-            mceq_db (MCEqRun): _description_
             pid (int): pdg id of particle
             etot (float): total energy of particle in GeV
         """
 
         self.decay_event = Pythia8DecayAfterburner()
+        self.pythia_pdata = PYTHIAParticleData()
+        self.xconv = XdepthConversion()
+        self.max_height = self.xconv.get_max_height()
 
-        self.mceq_db = mceq_db
-        self.pythia_pdata = self.PYTHIAParticleData()
-        self.pid = None
-        self.etot = None
-        self.set_decayed_particle(pid, etot)
+    def get_decay_length(self, particle):
+        """Returns decay length in `cm`"""
 
-    def set_decayed_particle(self, pid, etot):
-        self.reset_pid_etot = False
-        self.reset_mceq_data = False
-        self.stable = False
-        if self.pid != pid or self.etot != etot:
-            self.reset_pid_etot = True
-            self.reset_mceq_data = True
-
-        if self.reset_pid_etot:
-
-            ctau = float(self.pythia_pdata.ctau(pid))
-            if ctau == 0 or ctau == np.inf:
-                self.stable = True
-                return
-
-            self.pid = pid
-            self.mass = self.pythia_pdata.mass(self.pid)
-            self.etot = etot
-
-            self.ekin = self.etot - self.mass
-            gamma = self.etot / self.mass
-            beta_gamma = np.sqrt((gamma + 1) * (gamma - 1))
-            self.decay_length = beta_gamma * ctau
-
-            self.reset_pid_etot = False
-
-    def get_decay_length(self):
-        """Returns decay length in `cm`
-        for a particle set in constructor `ParticleDecay` or
-        reset in `set_decayed_particle(pid, etot)` method
-        """
-        if self.stable:
+        ctau0 = float(self.pythia_pdata.ctau(particle.pid))
+        if ctau0 == 0 or ctau0 == np.inf:
             return None
 
-        random_value = -np.log(1 - random.random())
-        return self.decay_length * random_value
+        gamma = particle.energy / float(self.pythia_pdata.mass(particle.pid))
+        # mean_length = np.sqrt((gamma + 1) * (gamma - 1)) * ctau0
+        # random_value = -np.log(1 - random.random())
+        # return random_value * mean_length
+        return -np.log(1 - random.random()) * np.sqrt((gamma + 1) * (gamma - 1)) * ctau0
+
+    def get_xdepth(self, particle):
+        length = self.get_decay_length(particle)
+        if length is None:
+            return None
+        return self.xconv.get_delta_xdepth(particle.xdepth, length)
 
     def get_decay_products(self, particle_list):
-        if self.stable:
-            return None
-
         return self.decay_event(particle_list)
 
-    def get_decay_products_mceq(self):
-        """Returns list of decay products `[(pid_1, etot_1),...]`
-        for a particle set in constructor `ParticleDecay` or
-        reset in `set_decayed_particle(pid, etot)` method
-        """
 
-        if self.stable:
-            return None
-
-        if self.reset_mceq_data:
-
-            try:
-                self._set_mceq_data()
-            except Exception:
-                return list((self.parent_particle.pdg_id))
-
-            self.reset_mceq_data = False
-
-        self.xleft = 1.0  # part of kinetic energy left for child particle
-
-        # Get decay channel
-        ind = np.argmax(np.random.multinomial(1, self.decay_probabilities, size=1))
-        decay_products = self.decay_channels[ind][1]
-        decay_size = len(decay_products)
-
-        result = []
-
-        for pid in decay_products:
-            if decay_size > 1:
-                result.append(self._get_child_particle(pid))
-                decay_size -= 1
-            else:
-                result.append(self._get_last_child_particle(pid))
-
-        return result
-
-    def _set_mceq_data(self):
-        self.parent_particle = particlemanager.MCEqParticle(
-            self.pid, 0, self.mceq_db._energy_grid
-        )
-        self.parent_particle.set_decay_channels(self.mceq_db._decays, self.mceq_db.pman)
-        # Set decay channels and probabilities
-        self.decay_channels = self.pythia_pdata.decay_channels(self.pid)
-        self.decay_probabilities = [channel[0] for channel in self.decay_channels]
-
-    def _get_mceq_child_particle(self, pid):
-        # !!Probably wrong!!
-        # This is a workaround to get an accepted argument
-        # for self.parent_particle.dNdec_dxlab
-        # which can be different from what
-        # self.pythia_pdata.decay_channels returns:
-        # Example:
-        # self.parent_particle.dNdec_dxlab accepts muon_left, muon_right
-        # but self.pythia_pdata.decay_channels returns only muon
-        # So this function returns first muon (muon_left or muon_right)
-        # which it is found
-        for child in self.parent_particle.decay_dists:
-            if child.pdg_id[0] == pid:
-                return self.mceq_db.pman[child.pdg_id]
-
-    def _get_child_particle(self, child_pid):
-        child_particle = self._get_mceq_child_particle(child_pid)
-        data = self.parent_particle.dNdec_dxlab(self.ekin, child_particle)
-        self.xgrid = data[0]
-        self.pdf_max = np.max(data[1])
-        self.pdf = self.interp1d(*data)
-
-        # xpart is the part of kinetic energy of decaying particle,
-        # i.e. E = xpart*ekin is the energy of child particle
-        # we draw it from probability distribution function self.pdf
-        xpart = rejection_sampler_rest(
-            self.pdf,
-            (self.xgrid[0], self.xgrid[-1]),
-            self.pdf_max,
-            (self.xgrid[0], self.xleft),
-        )
-
-        child_mass = self.pythia_pdata.mass(child_pid)
-        # !!Probably wrong approach:
-        # We use kinetic energy left from other particles
-        # The correct way is to get it from joint pdf
-        self.xleft -= xpart + child_mass / self.ekin
-        return (child_pid, xpart * self.ekin + child_mass)
-
-    def _get_last_child_particle(self, pid):
-        return (pid, self.xleft * self.ekin + self.mass)
-
-
-class DecayLength:
-    from particletools.tables import PYTHIAParticleData
-
-    def __init__(self, pdg, energy):
-        pythia_pdata = self.PYTHIAParticleData()
-        self.c_decay_time = pythia_pdata.ctau(pdg)
-        self.mass = pythia_pdata.mass(pdg)
-        self.set_energy(energy)
-
-    def set_energy(self, energy):
-        gamma = energy / self.mass
-        beta_gamma = np.sqrt((gamma + 1) * (gamma - 1))
-        self.decay_length = beta_gamma * self.c_decay_time
-
-    def get_decay_length(self):
-        random_value = -np.log(1 - random.random())
-        return self.decay_length * random_value
-
-
-# Example of usage:
-# from particle_decay import MCEqDBFactory, ParticleDecay
-# mceq_db = MCEqDBFactory().get_db()
-# pdecay =  ParticleDecay(mceq_db, pid = 11, etot = 1000)
-# pdecay.get_decay_length()
-# pdecay.get_decay_products()
+if __name__ == "__main__":
+    from particle_event import CascadeParticle
+    particle = CascadeParticle(111, 1e10, 100)
+    dp = ParticleDecay()
+    print(dp.get_xdepth(particle))
+    

@@ -1,98 +1,152 @@
 from hadron_event import HadronEvent
 from decay_event import DecayEvent
 from xdepth_conversion import XdepthConversion
-from pythia_decay import DecayByPythia
+from particle_decay import ParticleDecay
+from pythia_decay import Pythia8DecayAfterburner
 from particle_event import CascadeParticle
 
 
 
 
 class CascadeEvent:
-    def __init__(self, emin_threshold, particle):
+    def __init__(self, emin_threshold):
         
         self.emin_threshold = emin_threshold
-        self.particle = particle
-        self.hadron_event = HadronEvent(self.particle)
-        self.decay_event = DecayEvent(self.particle)
-        self.pythia_dec = DecayByPythia()
+        self.hadron_event = HadronEvent()
+        self.decay_event = ParticleDecay()
+        self.afterburner = Pythia8DecayAfterburner()
+        self.set_decay_on(True)
         
-        max_xdepth = self._get_max_depth()
-        print(f"CascadeEvent max_xdepth = {max_xdepth}")     
-        self.hadron_event.set_max_xdepth(max_xdepth)
-        self.decay_event.set_max_xdepth(max_xdepth)
-
-        self._decay_on = True
-
-    def _get_max_depth(self):
-        xconv = XdepthConversion()
-        return xconv.get_max_xdepth()
+        self.interacting_particles = []
+        self.decaying_particles = []
+        self.final_particles = []
         
     
     def _reset_ncalls(self):
         self.hadron_event._get_prod_ncalls = 0
         self.decay_event._get_prod_ncalls = 0
     
-    def set_decay_on(self, decay_on):
+    def set_decay_on(self, decay_on = True):
         self._decay_on = decay_on
 
-    def _get_event(self, particle):
-        
-        
-        if self._decay_on:
-            self.decay_event.set_particle(particle)
-            xdepth_decay = self.decay_event.get_xdepth()
-        else:
-            xdepth_decay = None    
+    # def _get_event(self, particle):
+    #     if self._decay_on:
+    #         self.decay_event.set_particle(particle)
+    #         xdepth_decay = self.decay_event.get_xdepth()
+    #     else:
+    #         xdepth_decay = None    
                
-        self.hadron_event.set_particle(particle)
-        xdepth_hadron = self.hadron_event.get_xdepth()
+    #     self.hadron_event.set_particle(particle)
+    #     xdepth_hadron = self.hadron_event.get_xdepth()
         
-        if (not xdepth_decay) and (not xdepth_hadron):
-            return None
+    #     if (not xdepth_decay) and (not xdepth_hadron):
+    #         return None
 
-        if xdepth_decay and (not xdepth_hadron):
-            return self.decay_event.get_products()
+    #     if xdepth_decay and (not xdepth_hadron):
+    #         return self.decay_event.get_products()
         
-        if (not xdepth_decay) and xdepth_hadron:
-            return self.hadron_event.get_products()
+    #     if (not xdepth_decay) and xdepth_hadron:
+    #         return self.hadron_event.get_products()
         
-        if xdepth_decay and xdepth_hadron:
-            if xdepth_decay < xdepth_hadron:
-                return self.decay_event.get_products()
-            else:
-                return self.hadron_event.get_products()
+    #     if xdepth_decay and xdepth_hadron:
+    #         if xdepth_decay < xdepth_hadron:
+    #             return self.decay_event.get_products()
+    #         else:
+    #             return self.hadron_event.get_products()
             
     def decay_particles(self, prod):
+        return self.afterburner(prod)
+    
+    def _if_particle_will_decay():
+        pass
         
-        result = []
-        for p in prod:
-            
-            dprod = self.pythia_dec.get_decayed_products(p.pid, p.energy)
-            if dprod:
-                for pp in dprod:
-                    cp = CascadeParticle(pp[0], pp[1], p.xdepth, 2, p.generation_number + 1)
-                    result.append(cp)
+        
+        # * Check if decay length is smaller than interaction length
+        # * Add xdepth of interaction for this particle
+        # * Append to the list of decaying particles
+        # * When all particles in the stack is empty, put the decaying particles
+        # in autoburner
+        # * Process the obtained list:
+        # ** If energy of particle below threshold put it in particles below threshold
+        # ** If energy is above  add it to main stack
+        # * Launch the main stack again
+        
+    def run_event(self, particle):
+        
+        xdepth_decay = self.decay_event.get_xdepth(particle)
+        xdepth_hadron = self.hadron_event.get_xdepth(particle)
+        
+        if xdepth_decay is None: 
+            if xdepth_hadron is None:
+                self.run_empty_event(particle)
             else:
-                result.append(p)    
-        return result
-                         
+                self.run_hadron_event(particle, xdepth_hadron)
+        else:
+            if xdepth_hadron is None:
+                self.run_decay_event(particle, xdepth_decay)
+            else:
+                if xdepth_decay < xdepth_hadron:
+                    self.run_decay_event(particle, xdepth_decay)
+                else:
+                    self.run_hadron_event(particle, xdepth_hadron)
+                   
+                    
+        
+    
+    def _clear_buffers(self):    
+        self.interacting_particles = []
+        self.decaying_particles = []
+        self.final_particles = []
+        
+        
+    def run_empty_event(self, particle):
+        self._clear_buffers()
+        particle.final_code = 1
+        self.final_particles.append(particle)
+        
                 
-    def get_event_particles(self, cur_particle):
-                
-        event = self._get_event(cur_particle)
+    def run_hadron_event(self, particle, xdepth_hadron):
+        self._clear_buffers()
         
-        if not event:
-            return None
+        products = self.hadron_event.get_products(particle, xdepth_hadron)
+        if products is None:
+            self.run_empty_event(particle)
+            return
         
-        inter_particles = []
-        final_particles = []
-        
-        for particle in event:
+        for particle in products:
             if (particle.energy < self.emin_threshold):
-                final_particles.append(particle)
+                particle.final_code = 2
+                self.final_particles.append(particle)
             else:
-                inter_particles.append(particle)
+                self.interacting_particles.append(particle)
+                    
+    
+    def run_decay_event(self, particle, xdepth_decay):
+        # print(f"Decaying particle: {particle.pid}")
+        self._clear_buffers()
+        particle.xdepth_decay = particle.xdepth + xdepth_decay
+        self.decaying_particles.append(particle)
+        
+                             
                 
-        final_particles = self.decay_particles(final_particles)        
-                
-        return inter_particles, final_particles
+    def get_event_particles(self, particle):   
+        self.run_event(particle)
+        
+        # print(f"Interacting = {len(self.interacting_particles)}",
+        #        f" Final = {len(self.final_particles)}", 
+        #        f" Decaying = {len(self.decaying_particles)}")
+        
+        return self.interacting_particles, self.final_particles, self.decaying_particles
+    
+    
+
+if __name__ == "__main__":
+    cev = CascadeEvent(1e4)
+    particle = CascadeParticle(2212, 1e8, 0)
+    
+    
+    res = cev.get_event_particles(particle)
+    print(len(res[0]), len(res[1]), len(res[2]))
+    
+    
+        

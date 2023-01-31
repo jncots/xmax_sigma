@@ -8,8 +8,17 @@ class CascadeParticle:
     pid: int
     energy: float
     xdepth: float
-    production_mode: int = 0 # 0 unknown, 1 interaction, 2 decay
+    production_mode: int = 0 
+    # 0 default, 
+    # 1 interaction, 
+    # 2 decay
     generation_number: int = 0
+    final_code: int = 0 
+    # 0 default - may interact (not final)
+    # 1 interaction not supported by generator, 
+    # 2 below threshold
+    # 3 interaction point below ground (xdepth > max xdepth)
+    xdepth_decay: float = 0
     parent: List = dataclasses.field(default_factory=list)
     
     def get_parents(self):

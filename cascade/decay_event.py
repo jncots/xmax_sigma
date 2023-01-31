@@ -1,13 +1,11 @@
 from particle_event import ParticleEvent, CascadeParticle
 from xdepth_conversion import XdepthConversion
-from particle_decay import MCEqDBFactory, ParticleDecay
+from particle_decay import ParticleDecay
 
 
 class DecayEvent(ParticleEvent):
     def __init__(self, particle):
-        self.pdecay = ParticleDecay(
-            MCEqDBFactory().get_db(), particle.pid, particle.energy
-        )
+        self.pdecay = ParticleDecay()
 
         self._get_prod_ncalls = 0
         self.xd_convertion = XdepthConversion()
@@ -57,8 +55,3 @@ class DecayEvent(ParticleEvent):
 
         self._get_prod_ncalls += 1
         return products
-
-
-
-# de = DecayEvent(CascadeParticle(111, 1e3, 100))
-# print(de.get_xdepth())
