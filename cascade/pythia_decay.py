@@ -51,14 +51,7 @@ class Pythia8DecayAfterburner:
         # Decay it
         self.pythia.forceHadronLevel()
         ievent = 0
-        for p in self.pythia.event:
-            
-            # print(
-            #     f"i = {ievent}, id = {p.id()}, status = {p.status()},",
-            #     f" energy = {p.e()}, mother1 = {p.mother1()}",
-            #     f" final = {p.isFinal()}, mother2 = {p.mother2()}"
-            # )
-            
+        for p in self.pythia.event:            
             # The first record in self.pythia.event is
             # the event itself, not a particle, therefore pass
             if ievent == 0:
@@ -99,15 +92,7 @@ class Pythia8DecayAfterburner:
                         parent=[mother],
                     )
                     final_particles.append(particle)
-            ievent += 1        
-        
-        # for particle in all_particles:    
-        #     print(particle)    
-            
-        # print("FINALS:")
-        # for particle in final_particles:    
-        #     print(particle)
-            
+            ievent += 1            
         return final_particles
 
     

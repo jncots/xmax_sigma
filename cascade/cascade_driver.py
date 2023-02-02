@@ -16,7 +16,6 @@ class CascadeDriver:
         while pstack:
             self.iterations += 1
             if self.iterations % 1000 == 0:
-            # if True:
                 print(
                     f"Pstack = {len(pstack)}, Fstack = {len(self.final_products)},"
                     f" Iterations = {self.iterations},"
@@ -25,8 +24,6 @@ class CascadeDriver:
 
             cur_particle = pstack.pop()
             current_generation = self.cascade_event.get_event_particles(cur_particle)
-            # print(f"Current_gen[0] = {len(current_generation[0])}")
-            # print(f"Particles on stack = {len(pstack)}")
             if len(current_generation[0]) > 0:
                 pstack.extend(current_generation[0])
             if len(current_generation[1]) > 0:
@@ -35,10 +32,8 @@ class CascadeDriver:
                 decaying_particles.extend(current_generation[2])
 
             if not pstack:
-                # print(f"Pstack is empty")
-                # input()
                 if decaying_particles:
-                    pstack.extend(self.cascade_event.afterburner(decaying_particles))
+                    pstack.extend(self.cascade_event.decay_particles(decaying_particles))
                     decaying_particles = []
 
         self._set_statistics_variables()
@@ -68,6 +63,4 @@ if __name__ == "__main__":
     for p in finals:
         if p.pid == 111:
             sum_of_111 += 1
-            # print(p)
-            # input()
     print(sum_of_111)

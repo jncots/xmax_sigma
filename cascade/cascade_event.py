@@ -1,6 +1,4 @@
 from hadron_event import HadronEvent
-from decay_event import DecayEvent
-from xdepth_conversion import XdepthConversion
 from particle_decay import ParticleDecay
 from pythia_decay import Pythia8DecayAfterburner
 from particle_event import CascadeParticle
@@ -30,48 +28,9 @@ class CascadeEvent:
     
     def set_decay_on(self, decay_on = True):
         self._decay_on = decay_on
-
-    # def _get_event(self, particle):
-    #     if self._decay_on:
-    #         self.decay_event.set_particle(particle)
-    #         xdepth_decay = self.decay_event.get_xdepth()
-    #     else:
-    #         xdepth_decay = None    
-               
-    #     self.hadron_event.set_particle(particle)
-    #     xdepth_hadron = self.hadron_event.get_xdepth()
-        
-    #     if (not xdepth_decay) and (not xdepth_hadron):
-    #         return None
-
-    #     if xdepth_decay and (not xdepth_hadron):
-    #         return self.decay_event.get_products()
-        
-    #     if (not xdepth_decay) and xdepth_hadron:
-    #         return self.hadron_event.get_products()
-        
-    #     if xdepth_decay and xdepth_hadron:
-    #         if xdepth_decay < xdepth_hadron:
-    #             return self.decay_event.get_products()
-    #         else:
-    #             return self.hadron_event.get_products()
             
     def decay_particles(self, prod):
         return self.afterburner(prod)
-    
-    def _if_particle_will_decay():
-        pass
-        
-        
-        # * Check if decay length is smaller than interaction length
-        # * Add xdepth of interaction for this particle
-        # * Append to the list of decaying particles
-        # * When all particles in the stack is empty, put the decaying particles
-        # in autoburner
-        # * Process the obtained list:
-        # ** If energy of particle below threshold put it in particles below threshold
-        # ** If energy is above  add it to main stack
-        # * Launch the main stack again
         
     def run_event(self, particle):
         
@@ -143,11 +102,6 @@ class CascadeEvent:
                 
     def get_event_particles(self, particle):   
         self.run_event(particle)
-        
-        # print(f"Interacting = {len(self.interacting_particles)}",
-        #        f" Final = {len(self.final_particles)}", 
-        #        f" Decaying = {len(self.decaying_particles)}")
-        
         return self.interacting_particles, self.final_particles, self.decaying_particles
     
     
