@@ -1,6 +1,5 @@
 from hadron_event import HadronEvent
 from particle_decay import ParticleDecay
-from pythia_decay import Pythia8DecayAfterburner
 from particle_event import CascadeParticle
 
 
@@ -12,7 +11,6 @@ class CascadeEvent:
         self.emin_threshold = emin_threshold
         self.hadron_event = HadronEvent()
         self.decay_event = ParticleDecay()
-        self.afterburner = Pythia8DecayAfterburner()
         self.set_decay_on(True)
         
         self.interacting_particles = []
@@ -29,8 +27,8 @@ class CascadeEvent:
     def set_decay_on(self, decay_on = True):
         self._decay_on = decay_on
             
-    def decay_particles(self, prod):
-        return self.afterburner(prod)
+    def decay_particles(self, particle_list):
+        return self.decay_event.get_decay_products(particle_list)
         
     def run_event(self, particle):
         
