@@ -6,18 +6,15 @@ from particle_event import CascadeParticle
 
 
 class CascadeEvent:
-    def __init__(self, emin_threshold):
+    def __init__(self, emin_threshold, stable_particle_pids = None):
         
         self.emin_threshold = emin_threshold
         self.hadron_event = HadronEvent()
         self.decay_event = ParticleDecay()
         self.set_decay_on(True)
-        
-        self.interacting_particles = []
-        self.decaying_particles = []
-        self.final_particles = []
-        
-        self.stable_particle_pids = [2212, 2112, 22, 11, 12, 13, 14]
+        self._clear_buffers()
+        if stable_particle_pids is None:    
+            self.stable_particle_pids = [2212, 2112, 22, 11, 12, 13, 14]
         
     
     def _reset_ncalls(self):

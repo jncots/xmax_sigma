@@ -17,6 +17,7 @@ class ParticleDecay:
         self.decay_event = Pythia8DecayAfterburner()
         self.pythia_pdata = PYTHIAParticleData()
         self.xconv = XdepthConversion()
+        self._get_prod_ncalls = 0
         self.max_height = self.xconv.get_max_height()
 
     def get_decay_length(self, particle):
@@ -47,7 +48,9 @@ class ParticleDecay:
             particle.xdepth_decay = particle.xdepth + xdepth
 
     def get_decay_products(self, particle_list):
-        return self.decay_event(particle_list)
+        decay_particles = self.decay_event(particle_list)
+        self._get_prod_ncalls += self.decay_event.get_number_of_decays()
+        return decay_particles
 
 
 if __name__ == "__main__":

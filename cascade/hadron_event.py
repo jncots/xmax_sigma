@@ -89,6 +89,7 @@ class HadronEvent:
         event_kin = chromo.kinematics.FixedTarget(energy, pid, self.target)
 
         if int(event_kin.p1) not in self.valid_pids:
+            print(f"{event_kin.p1} is not in valid_pids")
             raise Exception("Not a valid pdg for beam")
 
         self.event_generator.kinematics = event_kin
