@@ -161,43 +161,30 @@ class ParticleArray:
         self.clear(size)
         return popped_stack
         
-                    
 
-    # def pop(self, size = None):
-    #     if size is None:
-    #         self._len = 0
-    #     else:
-                
+if __name__ == "__main__":                   
+    # Initialize stack having size 10 reserved
+    pstack = ParticleArray(10)
 
-    # def __getitem__(self, arg):
-    #     pass    
+    # Push single values (pid is required)
+    print(f"Add single element {pstack.push(pid = 2212)}")
+    print(f"Add single element with energy {pstack.push(pid = 2212, energy = 789, xdepth = 0)}")
+    # Push arrays
+    print("Push array with 3 elements "
+          f"{pstack.push(pid = np.array([888, 342, 777]), energy = np.array([20, 20, 20]))}")
+
+    # Check len of stack (number of filled elements)
+    print(f"Size of stack = {len(pstack)}")
+    print(f"Print pid array = {pstack.pid}")
+    print(f"Print data_slice array = {pstack.data_slice}")
     
-    # def append_one(self, pid, energy, xdepth):
-    #     dst_slice = self._len
-    #     self.pid[dst_slice] = pid
-    #     self.energy[dst_slice] = energy
-    #     self.xdepth[dst_slice] = xdepth
-    #     self._len += 1
-        
-        
-    # def append(self, pid, energy, xdepth, src_slice = None):
-    #     dst_start = self._len
-    #     dst_end = self._len + len(pid[src_slice])
-    #     dst_slice = slice(dst_start, dst_end)
-        
-    #     self.pid[dst_slice] = np.copy(pid[src_slice])
-    #     self.energy[dst_slice] = np.copy(energy[src_slice])
-    #     self.xdepth[dst_slice] = np.copy(xdepth[src_slice])
-    #     self._len = dst_end
-                
+    # Pop (remove from stack and return a copy)
+    top_stack = pstack.pop(2)
+    print(f"Size of stack after pop(2) = {len(pstack)}")
 
-pstack = ParticleArray(10)
-
-print(pstack.push(pid = 2212))
-print(pstack.push(pid = 2212, energy = 789, xdepth = 0))
-print(pstack.push(pid = np.array([2212, 342, 777]), energy = np.array([20, 20, 20])))
-
-print(pstack.pid)
+    print(f"Print pid array of pop(2) = {top_stack.pid}")
+    print(f"Print data_slice array of pop(2) = {top_stack.data_slice}")
+    print(f"Size of top_stack = {len(top_stack)}")
 
 # print(len(pstack), pstack.reserved_size())
 
@@ -222,20 +209,7 @@ print(pstack.pid)
 # print(pcopy.data_slice)
 # print(len(pcopy))
 # print(pcopy.energy)
-# a = np.empty(10, dtype = np.int64)
-# b = np.array([0, 0, 4, 5, 0, 0], dtype = np.int64)
 
-# llen = 8
-# sl = slice(llen, None)
-# a[sl] = np.copy(b[2:4])
-# # a[-3] = np.array(87)
-
-# # print(a)
-# # print(len(a[-3:-1]))
-
-# # a[11] = 5
-
-# print(a[None])
 
 
         

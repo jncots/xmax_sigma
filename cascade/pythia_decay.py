@@ -249,6 +249,7 @@ class Pythia8Decay(chromo.models.Pythia8):
 
 
 if __name__ == "__main__":
+    pass
 
     # ff = Pythia8Decay()
        

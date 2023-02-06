@@ -24,7 +24,7 @@ class XdepthConversion:
         return self.cka_obj.X2h(x) / self.length_unit
 
     def convert_h2x(self, x):
-        """Convert xdepth to height"""
+        """Convert height to depth"""
         return self.cka_obj.h2X(x * self.length_unit)
 
     def get_max_xdepth(self):
