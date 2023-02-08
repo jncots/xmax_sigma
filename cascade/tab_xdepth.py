@@ -27,24 +27,30 @@ class TabXdepth:
         return np.interp(height_vec, self.height, self.xdepth)
     
     def add_len2x(self, xdepth_vec, length_vec):
-        print("xdepht =", np.interp(xdepth_vec, self.rev_xdepth, self.rev_length)*1e-5)
+        """Returns final xdepth for initial xdepth (g/cm^2) and
+        length (in cm)
+
+        Args:
+            xdepth_vec (np.array): initial xdepth
+            length_vec (np.array): delta length
+        """
         length = np.interp(xdepth_vec, self.rev_xdepth, self.rev_length) - length_vec
-        print("len =", length*1e-5)
         return np.interp(length, self.length, self.xdepth)
         
                 
-        
-xconv = TabXdepth()
 
-nn = 100000
+if __name__ == "__main__":        
+    xconv = TabXdepth()
 
-xdepth = np.array(np.zeros(nn),dtype='float64')
-dlen = np.random.rand(nn)*1e7
-# print(dlen)
-import time
-start = time.process_time()  
-xconv.add_len2x(xdepth, dlen)
-print((time.process_time() - start)/nn)
+    nn = 1000
+
+    xdepth = np.array(np.zeros(nn),dtype='float64')
+    dlen = np.random.rand(nn)*1e7
+    # print(dlen)
+    import time
+    start = time.process_time()  
+    xconv.add_len2x(xdepth, dlen)
+    print((time.process_time() - start)/nn)
 # np.zeros(10000)
 
 # np.random.rand()*1e7
