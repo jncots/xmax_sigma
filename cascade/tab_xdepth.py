@@ -3,29 +3,27 @@ import numpy as np
 
 
 class TabXdepth:
-    
-    def __init__(self, theta_deg = 0, npoints = 1000):
+    def __init__(self, theta_deg=0, npoints=1000):
         xconv = XdepthConversion(theta_deg)
         # Make height and length vector
-        self.height = np.linspace(0, xconv.get_max_height(), npoints, dtype='float64')
-        self.length = self.height/np.cos(theta_deg * np.pi/180)
-        
+        self.height = np.linspace(0, xconv.get_max_height(), npoints, dtype="float64")
+        self.length = self.height / np.cos(theta_deg * np.pi / 180)
+
         # Calculate xdepth vector
-        xdepth_fun = np.frompyfunc(lambda x : np.float64(xconv.convert_h2x(x)), 1, 1)
-        self.xdepth = xdepth_fun(self.height).astype('float64')
-        
-    
+        xdepth_fun = np.frompyfunc(lambda x: np.float64(xconv.convert_h2x(x)), 1, 1)
+        self.xdepth = xdepth_fun(self.height).astype("float64")
+
         # Revert vectors for interpolation
         self.rev_height = np.copy(self.height[::-1])
         self.rev_length = np.copy(self.length[::-1])
         self.rev_xdepth = np.copy(self.xdepth[::-1])
-    
+
     def convert_x2h(self, xdepth_vec):
         return np.interp(xdepth_vec, self.rev_xdepth, self.rev_height)
-        
+
     def convert_h2x(self, height_vec):
         return np.interp(height_vec, self.height, self.xdepth)
-    
+
     def add_len2x(self, xdepth_vec, length_vec):
         """Returns final xdepth for initial xdepth (g/cm^2) and
         length (in cm)
@@ -36,21 +34,21 @@ class TabXdepth:
         """
         length = np.interp(xdepth_vec, self.rev_xdepth, self.rev_length) - length_vec
         return np.interp(length, self.length, self.xdepth)
-        
-                
 
-if __name__ == "__main__":        
+
+if __name__ == "__main__":
     xconv = TabXdepth()
 
     nn = 1000
 
-    xdepth = np.array(np.zeros(nn),dtype='float64')
-    dlen = np.random.rand(nn)*1e7
+    xdepth = np.array(np.zeros(nn), dtype="float64")
+    dlen = np.random.rand(nn) * 1e7
     # print(dlen)
     import time
-    start = time.process_time()  
+
+    start = time.process_time()
     xconv.add_len2x(xdepth, dlen)
-    print((time.process_time() - start)/nn)
+    print((time.process_time() - start) / nn)
 # np.zeros(10000)
 
 # np.random.rand()*1e7
@@ -62,7 +60,6 @@ if __name__ == "__main__":
 # print(xconv.add_len2x(xdepth, dlen))
 
 # print(np.random.rand(5)*1e7)
-
 
 
 # from xdepth_conversion import XdepthConversion
@@ -77,7 +74,7 @@ if __name__ == "__main__":
 # height = np.linspace(0, xconv.get_max_height(), 1000, dtype='float64')
 # length = height/np.cos(80 * np.pi/180)
 # xdepth_fun = np.frompyfunc(lambda x : np.float64(xconv.convert_h2x(x)), 1, 1)
-# xdepth = xdepth_fun(height).astype('float64') 
+# xdepth = xdepth_fun(height).astype('float64')
 # plt.loglog(height, xdepth)
 # plt.grid()
 # print(xconv.convert_h2x(0))

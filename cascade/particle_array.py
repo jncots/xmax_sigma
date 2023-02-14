@@ -2,60 +2,57 @@ import numpy as np
 
 
 class ParticleArray:
-    
-    data_attributes = ["pid", 
-                       "energy", 
+
+    data_attributes = ["pid",
+                       "energy",
                        "xdepth",
                        "generation_num",
-                       "dxdepth_decay",
-                       "dxdepth_inter",
+                       "xdepth_decay",
+                       "xdepth_inter",
                        "production_code",
                        "final_code"]
-    
-    def __init__(self, size = None):
-        
+
+    def __init__(self, size=None):
+
         # Allocate memory
         if size is not None:
             self._allocate(size)
         else:
-        # Use is as view    
+            # Use is as view
             self.pid = None
             self.energy = None
             self.xdepth = None
             self.generation_num = None
-            self.dxdepth_decay = None
-            self.dxdepth_inter = None
+            self.xdepth_decay = None
+            self.xdepth_inter = None
             self.production_code = None
             self.final_code = None
             self.data_slice = None
             self._len = None
             self.data = None
-            
-        
-    
+
     def _allocate(self, size):
-        self.pid = np.empty(size, dtype = np.int64)
+        self.pid = np.empty(size, dtype=np.int64)
         self.energy = np.empty(size)
         self.xdepth = np.empty(size)
-        self.generation_num = np.empty(size, dtype = np.int64)
-        self.dxdepth_decay = np.empty(size)
-        self.dxdepth_inter = np.empty(size)
-        self.production_code = np.empty(size, dtype = np.int64)
-        self.final_code = np.empty(size, dtype = np.int64)
-        self.data_slice = np.empty(size, dtype = np.int64)
+        self.generation_num = np.empty(size, dtype=np.int64)
+        self.xdepth_decay = np.empty(size)
+        self.xdepth_inter = np.empty(size)
+        self.production_code = np.empty(size, dtype=np.int64)
+        self.final_code = np.empty(size, dtype=np.int64)
+        self.data_slice = np.empty(size, dtype=np.int64)
         self.data_slice.fill(0)
         self.data = self
         self._len = 0
-            
-    
+
     def __len__(self):
         return self._len
-    
+
     def reserved_size(self):
         return len(self.pid)
-    
-    def push(self, **kwargs):        
-                
+
+    def push(self, **kwargs):
+
         pid = kwargs.get("pid")
         if pid is None:
             return
@@ -99,28 +96,25 @@ class ParticleArray:
                 data_attr[dst_slice] = np.copy(value)
         self._len = dst_end
         self.data_slice[dst_slice] = 1
-        return dst_slice  
+        return dst_slice
 
-
-    def view(self, view_slice = None):
+    def view(self, view_slice=None):
         view_stack = ParticleArray()
-        
+
         if view_slice is None:
             view_slice = slice(0, None)
-        
+
         for attr in self.data_attributes:
             value = getattr(self, attr)
             setattr(view_stack, attr, value[view_slice])
-        
+
         view_stack._len = len(view_stack.pid)
         view_stack.data_slice = np.copy(self.data_slice)
         view_stack.data_slice[np.where(view_stack.data_slice == 0)] = 333
         view_stack.data = self
         return view_stack
-        
-    
-    def copy(self, *, src_slice = None, dst_slice = None, size = None):
-        
+
+    def copy(self, *, src_slice=None, dst_slice=None, size=None):
         if size is None:
             copy_stack = ParticleArray(self.reserved_size())
         else:
@@ -128,9 +122,9 @@ class ParticleArray:
 
         if src_slice is None:
             src_slice = slice(0, None)   
-        
+            
         copy_stack._len = 0
-        if dst_slice is None:          
+        if dst_slice is None:
             copy_stack._len = len(self.pid[src_slice])
             dst_slice = slice(0, copy_stack._len)
         
@@ -141,7 +135,7 @@ class ParticleArray:
         copy_stack.data_slice[dst_slice] = np.copy(self.data_slice[src_slice])
         return copy_stack
 
-    def clear(self, size = None):     
+    def clear(self, size=None):
         if size is None:
             self._len = 0
         else:
@@ -150,19 +144,18 @@ class ParticleArray:
                 self._len = 0
         return
 
-    def pop(self, size = None):
-        
+    def pop(self, size=None):
         if size is None or self._len < size:
             pop_slice = slice(0, None)
         else:
-            pop_slice = slice(self._len - size, self._len)    
-            
+            pop_slice = slice(self._len - size, self._len)
+                      
         popped_stack = self.copy(src_slice=pop_slice)
         self.clear(size)
         return popped_stack
-        
 
-if __name__ == "__main__":                   
+
+if __name__ == "__main__":
     # Initialize stack having size 10 reserved
     pstack = ParticleArray(10)
 
@@ -199,17 +192,13 @@ if __name__ == "__main__":
 # print(pstack.pid[np.where(pstack.data_slice>0)])
 
 
-
 # print(view_p.data_slice)
 # print(view_p.data.view([1, 1, 1]).energy)
 
-# pcopy = pstack.copy(src_slice=np.where((pstack.energy > 1) & (pstack.energy < 1000)), dst_slice = slice(1, 5))
+# pcopy = pstack.copy(src_slice=np.where((pstack.energy > 1) & (pstack.energy < 1000)),
+# dst_slice = slice(1, 5))
 # print(pstack.energy)
 
 # print(pcopy.data_slice)
 # print(len(pcopy))
 # print(pcopy.energy)
-
-
-
-        

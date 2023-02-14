@@ -6,7 +6,7 @@ class XdepthConversion:
     length_units = {"cm": 1, "m": 1e2, "km": 1e5}
     _min_xdepth = 1e-7
 
-    def __init__(self, theta = 0.0):
+    def __init__(self, theta=0.0):
         self.cka_obj = CorsikaAtmosphere("SouthPole", "December")
         self.cka_obj.set_theta(theta)
         self.length_unit = self.length_units["cm"]
@@ -29,7 +29,7 @@ class XdepthConversion:
 
     def get_max_xdepth(self):
         return self.convert_h2x(0)
-    
+
     def get_max_height(self):
         return self.convert_x2h(0)
 
@@ -59,7 +59,6 @@ class XdepthConversion:
             return None
         x2 = self.convert_h2x(h2)
         return x2 - x1
-
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ class TabParticles:
         """Returns c*tau, in cm"""
         ctau = self._all_particles_dict[pdg].ctau
         if (ctau is None) or math.isinf(ctau):
-            return np.float64(0)
+            return np.inf
         else:
             return np.float64(ctau * self._cm)
 
