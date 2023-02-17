@@ -2,10 +2,9 @@ from MCEq.data import InteractionCrossSections, HDF5Backend
 from MCEq.core import MCEqRun
 import crflux.models as pm
 import numpy as np
-from copy import copy
 
 
-class TabulateCSMCEq:
+class CrossSectionTableMCEq:
     def __init__(self, interaction_model="DPMJETIII191"):
         self.interaction_model = interaction_model
         self.mceq_run = MCEqRun(
@@ -29,11 +28,11 @@ class TabulateCSMCEq:
                 
         self.energy_grid = np.geomspace(emin, emax, npoints, dtype='float64')
         self.sigma_tab = np.empty([pid_size, len(self.energy_grid)], dtype=np.float64)
-        self.tabulate()
+        self._tabulate()
         
-    def tabulate(self):
+    def _tabulate(self):
         pid = 0
-        self.pid_from_pdg = dict()  
+        self.pid_pdg = dict()  
         for p in self.mceq_run.pman.all_particles:
             if p.is_hadron:
                 pdg = p.pdg_id[0]
@@ -41,17 +40,17 @@ class TabulateCSMCEq:
                                             self.interaction_cs.energy_grid.c + p.mass, 
                                             self.interaction_cs.get_cs(p.pdg_id[0], True))
                 
-                self.pid_from_pdg[pdg] = pid
+                self.pid_pdg[pdg] = pid
                 pid += 1
             
     def get_sigma(self):
-        return copy(self.sigma_tab)
+        return self.sigma_tab
     
     def get_energy_grid(self):
-        return copy(self.energy_grid)
+        return self.energy_grid
     
-    def get_pid_from_pdg(self):
-        return copy(self.pid_from_pdg)
+    def get_pid_pdg_dict(self):
+        return self.pid_pdg
 
 
 
