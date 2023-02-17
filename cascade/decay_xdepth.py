@@ -22,9 +22,9 @@ class DecayXdepth:
         bgamma = np.sqrt((gamma + 1) * (gamma - 1))
         rnd = -np.log(1 - np.random.rand(len(pstack)))
         length = rnd * bgamma * self.tab_pt.ctau(pstack.pid[pslice])
-        print(f"ctau = {self.tab_pt.ctau(pstack.pid[pslice])}")
-        print(f"length = {length}")
-        print(f"bgamma = {bgamma}")
+        # print(f"ctau = {self.tab_pt.ctau(pstack.pid[pslice])}")
+        # print(f"length = {length}")
+        # print(f"bgamma = {bgamma}")
         pstack.xdepth_decay[pslice] = self.tab_xd.add_len2x(
             pstack.xdepth[pslice], length
         )
