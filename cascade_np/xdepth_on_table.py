@@ -2,9 +2,9 @@ from xdepth_conversion import XdepthConversion
 import numpy as np
 
 
-class TabXdepth:
-    def __init__(self, theta_deg=0, npoints=1000):
-        xconv = XdepthConversion(theta_deg)
+class XdepthOnTable:
+    def __init__(self, *, xconv = XdepthConversion(), theta_deg=0, npoints=1000):
+        xconv.set_theta(theta_deg)
         # Make height and length vector
         self.height = np.linspace(0, xconv.get_max_height(), npoints, dtype="float64")
         self.length = self.height / np.cos(theta_deg * np.pi / 180)
@@ -32,14 +32,20 @@ class TabXdepth:
             xdepth_vec (np.array): initial xdepth
             length_vec (np.array): delta length
         """
+        print("xdepth_vec", xdepth_vec)
+        print("length0", np.interp(xdepth_vec, self.rev_xdepth, self.rev_length))
+        print("length_vec", length_vec)
+        
         length = np.interp(xdepth_vec, self.rev_xdepth, self.rev_length) - length_vec
+        print("length", length)
+        print("length", np.interp(length, self.length, self.xdepth))
         return np.interp(length, self.length, self.xdepth)
 
 
 if __name__ == "__main__":
-    xconv = TabXdepth()
+    xconv = XdepthOnTable()
 
-    nn = 1000
+    nn = 1000000
 
     xdepth = np.array(np.zeros(nn), dtype="float64")
     dlen = np.random.rand(nn) * 1e7
