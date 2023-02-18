@@ -32,13 +32,7 @@ class XdepthOnTable:
             xdepth_vec (np.array): initial xdepth
             length_vec (np.array): delta length
         """
-        print("xdepth_vec", xdepth_vec)
-        print("length0", np.interp(xdepth_vec, self.rev_xdepth, self.rev_length))
-        print("length_vec", length_vec)
-        
         length = np.interp(xdepth_vec, self.rev_xdepth, self.rev_length) - length_vec
-        print("length", length)
-        print("length", np.interp(length, self.length, self.xdepth))
         return np.interp(length, self.length, self.xdepth)
 
 

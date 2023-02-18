@@ -17,7 +17,7 @@ class PdgPidMap:
             max_pdg_map = self.max_pdg
         
         pdg_pid = np.empty(len(self.pid_pdg_dict), dtype = np.int32)                   
-        pid_pdg = np.full(2 * max_pdg_map + 1, np.nan, dtype=np.int32)
+        pid_pdg = np.full(2 * max_pdg_map + 1,-2147483640, dtype=np.int32)
         
         for pdg, pid in self.pid_pdg_dict.items():
             pdg_pid[pid] = pdg
@@ -28,6 +28,7 @@ class PdgPidMap:
         self.max_pdg_map = max_pdg_map
         self.pdg_pid = pdg_pid
         self.pid_pdg = pid_pdg
+        self.max_pid = max(pid_pdg)
             
     
     def get_pdgs(self, pids):
