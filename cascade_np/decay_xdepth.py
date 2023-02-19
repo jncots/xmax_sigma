@@ -6,9 +6,9 @@ import numpy as np
 
 class DecayXdepth:
     def __init__(self, *,
-                 particle_propeties = TabulatedParticleProperties(),
+                 tab_particle_properties = TabulatedParticleProperties(),
                  xdepth_on_table = XdepthOnTable()):
-        self.pp_tab = particle_propeties
+        self.pp_tab = tab_particle_properties
         self.xd_tab = xdepth_on_table
 
     def get_xdepth(self, pdg, energy, xdepth):

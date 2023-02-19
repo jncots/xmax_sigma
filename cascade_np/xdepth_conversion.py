@@ -9,6 +9,8 @@ class XdepthConversion:
         self.length_unit = self.length_units["cm"]
         # best found for CorsikaAtmosphere("SouthPole", "December")
         self._min_xdepth = 1e-6
+        self._calc_max()
+        
         
     def _calc_max(self):
         self.max_height = self.convert_x2h(0)

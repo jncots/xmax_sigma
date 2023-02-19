@@ -2,6 +2,11 @@ import numpy as np
 
 
 class ParticleArray:
+    """ParticleArray is data structure to keep particles and their properties
+
+        filter_code: is code to filter entries
+        {1: interacting, 2: decaying, 3: final}
+    """
 
     data_attributes = ["pid",
                        "energy",
@@ -10,7 +15,8 @@ class ParticleArray:
                        "xdepth_decay",
                        "xdepth_inter",
                        "production_code",
-                       "final_code"]
+                       "final_code",
+                       "filter_code"]
 
     def __init__(self, size=None):
 
@@ -27,6 +33,7 @@ class ParticleArray:
             self.xdepth_inter = None
             self.production_code = None
             self.final_code = None
+            self.filter_code = None
             self.data_slice = None
             self._len = None
             self.data = None
@@ -40,6 +47,7 @@ class ParticleArray:
         self.xdepth_inter = np.empty(size)
         self.production_code = np.empty(size, dtype=np.int64)
         self.final_code = np.empty(size, dtype=np.int64)
+        self.filter_code = np.empty(size, dtype=np.int64)
         self.data_slice = np.empty(size, dtype=np.int64)
         self.data_slice.fill(0)
         self.data = self

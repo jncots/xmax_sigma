@@ -1,12 +1,19 @@
 from decay_xdepth import DecayXdepth
-from csec_tables import CrossSectionTableMCEq
+from csec_tables import CrossSectionTableMCEq, CSXdepthConversion
 from pdg_pid_map import PdgLists
 from csec_on_table import CrossSectionOnTable
 from xdepth_on_table import XdepthOnTable
+from xdepth_conversion import XdepthConversion
+from MCEq.geometry.density_profiles import CorsikaAtmosphere
+from tab_pproperties import TabulatedParticleProperties, ParticlePropertiesParticle
 
 class NextDecayXdepth:
-    def __init__(self, xdepth_on_table):
-        self.decay_xdepth = DecayXdepth(xdepth_on_table)
+    def __init__(self, *, xdepth_conversion):   
+        xdepth_on_table = XdepthOnTable(xdepth_conversion = xdepth_conversion, npoints=1000)
+        particle_properties = ParticlePropertiesParticle()
+        tab_particle_properties = TabulatedParticleProperties(particle_properties=particle_properties)
+        self.decay_xdepth = DecayXdepth(tab_particle_properties=tab_particle_properties,
+                                        xdepth_on_table=xdepth_on_table)
          
     def get_xdepth(self, pstack):        
         pslice = slice(0, len(pstack))
@@ -17,28 +24,36 @@ class NextDecayXdepth:
                                        .get_xdepth(pdg, energy, xdepth))
         
 class NextInterXdepth:
-    def __init__(self, xdepth_on_table):
-        cs_table = CrossSectionTableMCEq()
+    def __init__(self, *, xdepth_conversion):        
+        cs_xdepth_conv = CSXdepthConversion()
+        cs_table = CrossSectionTableMCEq(interaction_model="DPMJETIII191",
+                                         cs_xdepth_conv = cs_xdepth_conv)
         cs_table.add_pdgs(PdgLists().longer_pi0_to_mceq)
         self.inter_xdepth = CrossSectionOnTable(cs_table)
-        self.xdepth_max = xdepth_on_table
+        self.max_xdepth = xdepth_conversion.get_max_xdepth()
          
     def get_xdepth(self, pstack):       
         pslice = slice(0, len(pstack))
         pdg = pstack.pid[pslice]
         energy = pstack.energy[pslice]
         xdepth = pstack.xdepth[pslice]
-        pstack.xdepth_inter[pslice] = (self.inter_xdepth
-                                       .get_xdepth(pdg, energy) + xdepth)       
-        
+        result_with_infs = (self.inter_xdepth
+                                       .get_xdepth(pdg, energy) + xdepth)
+                       
+        pstack.xdepth_inter[pslice] = np.where(result_with_infs == np.inf, 
+                                               self.max_xdepth, result_with_infs)
         
         
 if __name__ == "__main__":
     from particle_array import ParticleArray
     import numpy as np
     
-    next_decay = NextDecayXdepth()
-    next_inter = NextInterXdepth()
+    atmosphere = CorsikaAtmosphere("SouthPole", "December")
+    xconv =  XdepthConversion(atmosphere = atmosphere)
+    xconv.set_theta(30)
+    
+    next_decay = NextDecayXdepth(xdepth_conversion=xconv)
+    next_inter = NextInterXdepth(xdepth_conversion=xconv)
     
     pstack = ParticleArray(size=100)
     pstack.push(

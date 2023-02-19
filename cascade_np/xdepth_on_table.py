@@ -3,14 +3,14 @@ import numpy as np
 
 
 class XdepthOnTable:
-    def __init__(self, *, xconv = XdepthConversion(), theta_deg=0, npoints=1000):
-        xconv.set_theta(theta_deg)
+    def __init__(self, *, xdepth_conversion = XdepthConversion(), npoints=1000):
+        theta_deg = xdepth_conversion.get_theta()
         # Make height and length vector
-        self.height = np.linspace(0, xconv.get_max_height(), npoints, dtype="float64")
+        self.height = np.linspace(0, xdepth_conversion.get_max_height(), npoints, dtype="float64")
         self.length = self.height / np.cos(theta_deg * np.pi / 180)
 
         # Calculate xdepth vector
-        xdepth_fun = np.frompyfunc(lambda x: np.float64(xconv.convert_h2x(x)), 1, 1)
+        xdepth_fun = np.frompyfunc(lambda x: np.float64(xdepth_conversion.convert_h2x(x)), 1, 1)
         self.xdepth = xdepth_fun(self.height).astype("float64")
 
         # Revert vectors for interpolation
