@@ -16,7 +16,8 @@ class ParticleArray:
                        "xdepth_inter",
                        "production_code",
                        "final_code",
-                       "filter_code"]
+                       "filter_code",
+                       "valid_code"]
 
     def __init__(self, size=None):
 
@@ -34,7 +35,7 @@ class ParticleArray:
             self.production_code = None
             self.final_code = None
             self.filter_code = None
-            self.data_slice = None
+            self.valid_code = None
             self._len = None
             self.data = None
 
@@ -48,13 +49,25 @@ class ParticleArray:
         self.production_code = np.empty(size, dtype=np.int64)
         self.final_code = np.empty(size, dtype=np.int64)
         self.filter_code = np.empty(size, dtype=np.int64)
-        self.data_slice = np.empty(size, dtype=np.int64)
-        self.data_slice.fill(0)
+        self.valid_code = np.zeros(size, dtype=np.int64)
         self.data = self
         self._len = 0
 
     def __len__(self):
         return self._len
+    
+    
+    def __getitem__(self, key):
+        view_stack = ParticleArray()
+        for attr in self.data_attributes:
+            setattr(view_stack, attr, getattr(self, attr)[key])
+
+        view_stack._len = len(view_stack.pid)
+        view_stack.data = self
+        return view_stack
+        
+        
+        
 
     def reserved_size(self):
         return len(self.pid)
@@ -86,7 +99,7 @@ class ParticleArray:
                 # Arrays should be equal
                 data_attr[dst_slice] = np.copy(value[src_slice])
         self._len = dst_end
-        self.data_slice[dst_slice].fill(1)
+        self.valid_code[dst_slice].fill(1)
         return dst_slice
     
     def push_one(self, **kwargs):
@@ -103,24 +116,9 @@ class ParticleArray:
             if data_attr is not None:
                 data_attr[dst_slice] = np.copy(value)
         self._len = dst_end
-        self.data_slice[dst_slice] = 1
+        self.valid_code[dst_slice] = 1
         return dst_slice
 
-    def view(self, view_slice=None):
-        view_stack = ParticleArray()
-
-        if view_slice is None:
-            view_slice = slice(0, None)
-
-        for attr in self.data_attributes:
-            value = getattr(self, attr)
-            setattr(view_stack, attr, value[view_slice])
-
-        view_stack._len = len(view_stack.pid)
-        view_stack.data_slice = np.copy(self.data_slice)
-        view_stack.data_slice[np.where(view_stack.data_slice == 0)] = 333
-        view_stack.data = self
-        return view_stack
 
     def copy(self, *, src_slice=None, dst_slice=None, size=None):
         if size is None:
@@ -140,7 +138,7 @@ class ParticleArray:
             src_value = getattr(self, attr)[src_slice]
             getattr(copy_stack, attr)[dst_slice] = np.copy(src_value)
         
-        copy_stack.data_slice[dst_slice] = np.copy(self.data_slice[src_slice])
+        copy_stack.valid_code[dst_slice] = np.copy(self.valid_code[src_slice])
         return copy_stack
 
     def clear(self, size=None):
@@ -161,7 +159,25 @@ class ParticleArray:
         popped_stack = self.copy(src_slice=pop_slice)
         self.clear(size)
         return popped_stack
-
+    
+    def append(self, other):
+        
+        if not isinstance(other, ParticleArray):
+            raise ValueError("argument is not a ParticleArray object")
+        
+        other_slice =  slice(0, len(other))
+        self_slice = slice(len(self), len(self) + len(other))
+        
+        for attr in other.data_attributes:
+            val_other = getattr(other, attr)
+            val_self = getattr(self, attr)
+            val_self[self_slice] = val_other[other_slice]
+            
+        self._len = len(self) + len(other)
+        return self    
+            
+    def valid(self):
+        return self[0:self._len]  
 
 if __name__ == "__main__":
     # Initialize stack having size 10 reserved
@@ -174,18 +190,25 @@ if __name__ == "__main__":
     print("Push array with 3 elements "
           f"{pstack.push(pid = np.array([888, 342, 777]), energy = np.array([20, 20, 20]))}")
 
-    # Check len of stack (number of filled elements)
-    print(f"Size of stack = {len(pstack)}")
-    print(f"Print pid array = {pstack.pid}")
-    print(f"Print data_slice array = {pstack.data_slice}")
-    
-    # Pop (remove from stack and return a copy)
-    top_stack = pstack.pop(2)
-    print(f"Size of stack after pop(2) = {len(pstack)}")
 
-    print(f"Print pid array of pop(2) = {top_stack.pid}")
-    print(f"Print data_slice array of pop(2) = {top_stack.data_slice}")
-    print(f"Size of top_stack = {len(top_stack)}")
+    print(pstack.valid().energy)
+    
+    pstack1 = ParticleArray(100)
+    print(pstack1.append(pstack).append(pstack).append(pstack).valid().valid_code)
+    
+
+    # # Check len of stack (number of filled elements)
+    # print(f"Size of stack = {len(pstack)}")
+    # print(f"Print pid array = {pstack.pid}")
+    # print(f"Print data_slice array = {pstack.data_slice}")
+    
+    # # Pop (remove from stack and return a copy)
+    # top_stack = pstack.pop(2)
+    # print(f"Size of stack after pop(2) = {len(pstack)}")
+
+    # print(f"Print pid array of pop(2) = {top_stack.pid}")
+    # print(f"Print data_slice array of pop(2) = {top_stack.data_slice}")
+    # print(f"Size of top_stack = {len(top_stack)}")
 
 # print(len(pstack), pstack.reserved_size())
 
