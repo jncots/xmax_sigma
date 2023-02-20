@@ -60,9 +60,10 @@ class ParticleArray:
     def __getitem__(self, key):
         view_stack = ParticleArray()
         for attr in self.data_attributes:
-            setattr(view_stack, attr, getattr(self, attr)[key])
+            value = getattr(self, attr)[key]
+            setattr(view_stack, attr, value)
 
-        view_stack._len = len(view_stack.pid)
+        view_stack._len = view_stack.pid.size
         view_stack.data = self
         return view_stack
         
@@ -194,7 +195,9 @@ if __name__ == "__main__":
     print(pstack.valid().energy)
     
     pstack1 = ParticleArray(100)
-    print(pstack1.append(pstack).append(pstack).append(pstack).valid().valid_code)
+    pstack1.append(pstack).append(pstack).append(pstack)
+    print(np.where(np.in1d(pstack1.valid().pid, np.array([888])))[0])
+    # print(pstack1.valid()[np.where(pstack1.valid().pid in [888, 777])].pid)
     
 
     # # Check len of stack (number of filled elements)
