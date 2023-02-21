@@ -1,6 +1,8 @@
 import chromo
 import numpy as np
 from pathlib import Path
+from particle_array import ParticleArray, FilterCode
+from particle_xdepths import default_xdepth_getter
 # from particle_event import CascadeParticle
 
 chormo_path = Path(chromo.__file__).parent
@@ -50,81 +52,106 @@ class DecayInteraction:
         self.pythia.readString("ProcessLevel:all = off")
         self.pythia.readString("ParticleDecays:tau0Max = 1e100")
         self.pythia.init()
+        self.pythia.particleData.mayDecay(211, True)
+        self.pythia.particleData.mayDecay(-211, True)
+        self.pythia.particleData.mayDecay(13, True)
+        self.pythia.particleData.mayDecay(-13, True)
+        self.pythia.particleData.mayDecay(111, True)
+    
+    
+    def calc_xdepth(self, pstack):
+        slice_to_calc = np.where(pstack.valid().filter_code == FilterCode.XD_DECAY_OFF.value)[0]
+        # print("slice_to_calc = ", pstack.valid().filter_code)
+        # print("slice_to_calc = ", slice_to_calc)
+        stack_to_calc = pstack[slice_to_calc]
         
-    def __call__(self, event):
+        default_xdepth_getter.get_decay_xdepth(stack_to_calc)
+        pstack[slice_to_calc] = stack_to_calc
+    
+    
+    def generations(self, parents, zero_gen_len, pstack):
+        
+        pp = np.empty(len(parents) + 1, dtype = np.int32)
+        pp[:-1] = parents - 1
+        pp[-1] = -1
+        
+        
+        pp1 = np.copy(pp)
+        for i in range(100):    
+            sl1 = np.where((pp1 < zero_gen_len)&(pp1 > -1))[0]
+            
+            pstack.xdepth[sl1] = pstack.xdepth_decay[pp[sl1]]
+            pstack.generation_num[sl1] = pstack.generation_num[pp[sl1]] + 1
+            pstack.filter_code[sl1] = FilterCode.XD_DECAY_OFF.value
+            self.calc_xdepth(pstack)
+            
+            # print("ppp = ", pp[sl1], sl1)
+            # print("pstack.xdepth", pstack.xdepth_decay[pp[sl1]])
+            # print("pstack.xdepth", pstack.xdepth[sl1])
+            # print("pstack.xdepth_decay", pstack.xdepth_decay[sl1])
+            pp1 = pp[pp1]
+            if not len(sl1) > 0:
+                break
 
-        self.number_of_decays = 0
-        all_particles = []
-        final_particles = []
-
+            
+        
+    def __call__(self, pstack):
+        
+        self.calc_xdepth(pstack)
         self.pythia.event.reset()
 
-        for particle in event:
-            m0 = self.pythia.particleData.findParticle(particle.pid).m0
+        for ip in range(len(pstack)):
+            m0 = self.pythia.particleData.findParticle(pstack.pid[ip]).m0
             self.pythia.event.append(
-                particle.pid,
+                pstack.pid[ip],
                 91,
                 0,
                 0,
                 0,
                 0,
-                np.sqrt((particle.energy + m0) * (particle.energy - m0)),  # pz
-                particle.energy,
+                np.sqrt((pstack.energy[ip] + m0) * (pstack.energy[ip] - m0)),  # pz
+                pstack.energy[ip],
                 m0,
             )
-            self.pythia.particleData.mayDecay(particle.pid, True)
+            # self.pythia.particleData.mayDecay(pstack.pid[ip], True)
 
         # Decay it
         self.pythia.forceHadronLevel()
-        ievent = 0
-        for p in self.pythia.event:
-            # The first record in self.pythia.event is
-            # the event itself, not a particle, therefore pass
-            if ievent == 0:
-                # Add None for one to one mapping
-                # So mother1() will be an index in all_particles
-                all_particles.append(None)
-                ievent += 1
-                continue
-
-            if ievent <= len(event):
-                all_particles.append(event[ievent - 1])
-            else:
-                mother = all_particles[p.mother1()]
-                particle = CascadeParticle(
-                    pid=p.id(),
-                    energy=p.e(),
-                    xdepth=mother.xdepth_decay,
-                    xdepth_decay=mother.xdepth_decay,
-                    production_mode=2,
-                    generation_number=mother.generation_number + 1,
-                    parent=[mother],
-                )
-                all_particles.append(particle)
-
-            if p.isFinal():
-                if p.mother1() == 0:
-                    final_particles.append(all_particles[ievent])
-                else:
-                    mother = all_particles[p.mother1()]
-                    particle = CascadeParticle(
-                        pid=p.id(),
-                        energy=p.e(),
-                        xdepth=mother.xdepth_decay,
-                        xdepth_decay=mother.xdepth_decay,
-                        production_mode=2,
-                        generation_number=mother.generation_number + 1,
-                        parent=[mother],
-                    )
-                    final_particles.append(particle)
-            else:
-                self.number_of_decays += 1
-
-            ievent += 1
-        return final_particles        
+        
+        
+        self.res_stack = ParticleArray(1000)     
+        self.res_stack.push(pid = self.pythia.event.pid(),
+                       energy = self.pythia.event.en())
+        
+        self.res_stack.valid().xdepth_decay[0:len(pstack)] = pstack.valid().xdepth_decay
+        self.res_stack.valid().generation_num[0:len(pstack)] = pstack.valid().generation_num
+        self.res_stack.valid().filter_code[0:len(pstack)] = pstack.valid().filter_code
+        
+        
+        # print(self.pythia.event.pid())
+        self.generations(self.pythia.event.parents()[:,0], len(pstack), self.res_stack)
+        self.res_stack = self.res_stack[np.where(self.pythia.event.status() == 1)]    
     
-    
+    def get_finals(self):
+        return self.res_stack
+        
 
 if __name__ == "__main__":
     
-    dint = DecayInteraction()    
+    dint = DecayInteraction()
+    
+    pstack = ParticleArray(10)
+    
+    pstack.push(pid = [3312, 211, 111], energy = [1e3, 1e3, 1e3], 
+                xdepth = [1e1, 1e1, 1e1])
+    
+    pstack.valid().filter_code[:] = FilterCode.XD_DECAY_OFF.value
+    
+    
+    print(pstack.valid().filter_code)
+    dint.calc_xdepth(pstack)
+    print(pstack.valid().xdepth)
+    print(pstack.valid().xdepth_decay)
+    print(pstack.valid().filter_code)
+    
+       

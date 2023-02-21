@@ -1,5 +1,12 @@
 import numpy as np
+from enum import Enum
 
+
+class FilterCode(Enum):
+    # xdepth_decay is already calculated
+    XD_DECAY_ON = 21
+    # xdepth_decay is empty
+    XD_DECAY_OFF = 22
 
 class ParticleArray:
     """ParticleArray is data structure to keep particles and their properties
@@ -67,7 +74,15 @@ class ParticleArray:
         view_stack.data = self
         return view_stack
         
+    def __setitem__(self, slice_, other):
+
+        if not isinstance(other, ParticleArray):
+            raise ValueError("Argument is not an object of ParticleArray class")
         
+        for attr in self.data_attributes:
+            other_value = getattr(other, attr)
+            self_value = getattr(self, attr)
+            self_value[slice_] = other_value
         
 
     def reserved_size(self):

@@ -36,14 +36,12 @@ class CrossSectionOnTable:
         """
         xdepth = np.empty(len(pdg), dtype=np.float64)
         pid_array = self.pmap.get_pids(pdg)
-        print(pid_array, self.pmap.max_pid)
         for pid in set(pid_array):
             pid_slice = np.where(pid_array == pid)[0]
             if abs(pid) > self.pmap.max_pid:
                 xdepth[pid_slice] = np.full_like(energy[pid_slice], np.inf, dtype=np.float64)
             else:
                 xdepth[pid_slice] = np.interp(energy[pid_slice], self.energy_grid, self.xdepth_tab[pid,:])
-        print("xdepth = ", xdepth)
         return xdepth
             
     def get_xdepth(self, pdg, energy):
