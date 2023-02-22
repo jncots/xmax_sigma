@@ -15,7 +15,9 @@ class ParticleArray:
         filter_code: is code to filter entries
         {1: interacting, 2: decaying, 3: final}
     """
-
+    _max_size = 10000000
+    _int_type = np.int32
+    
     data_attributes = ["pid",
                        "energy",
                        "xdepth",
@@ -27,43 +29,39 @@ class ParticleArray:
                        "filter_code",
                        "valid_code"]
 
-    def __init__(self, size=None):
+    def __init__(self, size=1000):
 
         # Allocate memory
         if size is not None:
             self._allocate(size)
         else:
             # Use is as view
-            self.pid = None
-            self.energy = None
-            self.xdepth = None
-            self.generation_num = None
-            self.xdepth_decay = None
-            self.xdepth_inter = None
-            self.production_code = None
-            self.final_code = None
-            self.filter_code = None
-            self.valid_code = None
+            for attr in self.data_attributes:
+                setattr(self, attr, None)
             self._len = None
             self.data = None
 
     def _allocate(self, size):
-        self.pid = np.empty(size, dtype=np.int64)
+        self.pid = np.empty(size, dtype=self._int_type)
         self.energy = np.empty(size)
         self.xdepth = np.empty(size)
-        self.generation_num = np.empty(size, dtype=np.int64)
+        self.generation_num = np.empty(size, dtype=self._int_type)
         self.xdepth_decay = np.empty(size)
         self.xdepth_inter = np.empty(size)
-        self.production_code = np.empty(size, dtype=np.int64)
-        self.final_code = np.empty(size, dtype=np.int64)
-        self.filter_code = np.empty(size, dtype=np.int64)
-        self.valid_code = np.zeros(size, dtype=np.int64)
+        self.production_code = np.empty(size, dtype=self._int_type)
+        self.final_code = np.empty(size, dtype=self._int_type)
+        self.filter_code = np.empty(size, dtype=self._int_type)
+        self.valid_code = np.zeros(size, dtype=self._int_type)
         self.data = self
         self._len = 0
 
     def _increase_size(self, factor=2):
         old_size = self.reserved_size()
         new_size = factor * old_size
+        
+        if new_size > self._max_size:
+            raise MemoryError("Too large array")
+        
         new_array = ParticleArray(new_size)
         for attr in self.data_attributes:
             self_value = getattr(self, attr)
@@ -84,7 +82,7 @@ class ParticleArray:
     
     
     def __getitem__(self, key):
-        view_stack = ParticleArray()
+        view_stack = ParticleArray(None)
         for attr in self.data_attributes:
             value = getattr(self, attr)[key]
             setattr(view_stack, attr, value)
@@ -229,6 +227,7 @@ class ParticleArray:
 if __name__ == "__main__":
     
     # Initialize stack having size 10 reserved
+    
     pstack = ParticleArray(10)
 
     # Push single values (pid is required)

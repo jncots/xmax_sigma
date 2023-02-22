@@ -14,7 +14,7 @@ class HadronInteraction:
     
     def run_event_generator(self, pstack):
         # pstack = ParticleArray()
-        self.children = ParticleArray(100000)
+        self.children = ParticleArray()
         self.failed_to_interact = None
         
         for i in range(len(pstack)):
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     
     hint = HadronInteraction()
     
-    pstack = ParticleArray(1000)
+    pstack = ParticleArray()
     pstack.push(pid = 2212, energy = 1e5, xdepth = 0, xdepth_inter = 5, generation_num = 0)
     
     hint.run_event_generator(pstack)

@@ -12,10 +12,10 @@ class CascadeDriver:
         self.xdepth_getter = xdepth_getter
         self.pdg_lists = PdgLists()
         self.hadron_interaction = HadronInteraction()
-        self.working_stack = ParticleArray(1000000)
-        self.final_stack = ParticleArray(1000000)
-        self.decay_stack = ParticleArray(1000000)
-        self.inter_stack = ParticleArray(1000000)
+        self.working_stack = ParticleArray()
+        self.final_stack = ParticleArray()
+        self.decay_stack = ParticleArray()
+        self.inter_stack = ParticleArray()
     
     
     def run(self, *, pdg, energy, xdepth = 0):
