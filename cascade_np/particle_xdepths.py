@@ -60,6 +60,7 @@ class DefaultXdepthGetter:
         atmosphere = CorsikaAtmosphere("SouthPole", "December")
         xconv =  XdepthConversion(atmosphere = atmosphere)
         xconv.set_theta(theta_deg)
+        self.max_xdepth = xconv.get_max_xdepth()
 
         if mode == "both":
             self.next_decay = NextDecayXdepth(xdepth_conversion=xconv)
@@ -79,7 +80,8 @@ class DefaultXdepthGetter:
     def get_inter_xdepth(self, pstack):
         return self.next_inter.get_xdepth(pstack)
     
-default_xdepth_getter = DefaultXdepthGetter(mode="decay")
+# default_xdepth_getter = DefaultXdepthGetter(mode="decay")
+default_xdepth_getter = DefaultXdepthGetter()
     
 
         

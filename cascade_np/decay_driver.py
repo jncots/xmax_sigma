@@ -126,7 +126,7 @@ class DecayDriver:
         
         self._number_of_decays = len(np.where(self._pythia.event.status() == 2)[0])
         # Process event from Pythia
-        decay_stack = ParticleArray(1000)     
+        decay_stack = ParticleArray(100000)     
         decay_stack.push(pid = self._pythia.event.pid(),
                        energy = self._pythia.event.en())
         

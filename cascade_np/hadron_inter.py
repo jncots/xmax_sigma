@@ -8,11 +8,14 @@ class HadronInteraction:
         self.target =  (14, 7)
         ekin = chromo.kinematics.FixedTarget(20000, "proton", self.target)
         self.event_generator = chromo.models.Sibyll23d(ekin)
-        self.children = ParticleArray(100000)
+        # self.children = ParticleArray(100000)
+        # self.failed_to_interact = None
     
     
     def run_event_generator(self, pstack):
         # pstack = ParticleArray()
+        self.children = ParticleArray(100000)
+        self.failed_to_interact = None
         
         for i in range(len(pstack)):
             try:
@@ -31,14 +34,20 @@ class HadronInteraction:
                             xdepth = np.full(len(event), pstack.xdepth_inter[i]),
                             generation_num = np.full(len(event), generation_num),
                             production_code = np.full(len(event), 1))
-            
-        print("small = ", pstack.pid[np.where(pstack.production_code == 333)])
-        print("small = ", pstack.energy[np.where(pstack.production_code == 333)])
+        
+        
+        
+        self.failed_to_interact = pstack[np.where(pstack.production_code == 333)]
+        pass    
+        # print("small = ", pstack.pid[np.where(pstack.production_code == 333)])
+        # print("small = ", pstack.energy[np.where(pstack.production_code == 333)])
         
         
     def get_children(self):
         return self.children
 
+    def get_failed(self):
+        return self.failed_to_interact
 
 if __name__ == "__main__":
     

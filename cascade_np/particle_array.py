@@ -1,5 +1,6 @@
 import numpy as np
 from enum import Enum
+import gc
 
 
 class FilterCode(Enum):
@@ -60,6 +61,24 @@ class ParticleArray:
         self.data = self
         self._len = 0
 
+    def _increase_size(self, factor=2):
+        old_size = self.reserved_size()
+        new_size = factor * old_size
+        new_array = ParticleArray(new_size)
+        for attr in self.data_attributes:
+            self_value = getattr(self, attr)
+            new_value = getattr(new_array, attr)
+            new_value[0:old_size] = self_value
+            setattr(self, attr, new_value)
+        new_array = self    
+        gc.collect()
+        
+    def _adjust_capacity(self, size):
+        factor = int(np.ceil(size/self.reserved_size()))
+        if factor > 1:
+            self._increase_size(factor)
+        
+
     def __len__(self):
         return self._len
     
@@ -106,6 +125,8 @@ class ParticleArray:
         dst_end = self._len + len(pid[src_slice])
         dst_slice = slice(dst_start, dst_end)
         
+        self._adjust_capacity(dst_end)
+        
         for name, value in kwargs.items():
             data_attr = getattr(self, name, None)
             if data_attr is not None:
@@ -126,6 +147,8 @@ class ParticleArray:
         dst_start = self._len
         dst_end = self._len + 1
         dst_slice = slice(dst_start, dst_end)
+        
+        self._adjust_capacity(dst_end)
         
         for name, value in kwargs.items():
             data_attr = getattr(self, name, None)
@@ -182,20 +205,29 @@ class ParticleArray:
             raise ValueError("argument is not a ParticleArray object")
         
         other_slice =  slice(0, len(other))
-        self_slice = slice(len(self), len(self) + len(other))
+        new_len = len(self) + len(other)
+        self_slice = slice(len(self), new_len)
         
+        self._adjust_capacity(new_len)
+
         for attr in other.data_attributes:
             val_other = getattr(other, attr)
             val_self = getattr(self, attr)
-            val_self[self_slice] = val_other[other_slice]
+            try:
+                val_self[self_slice] = val_other[other_slice]
+            except:
+                print(f"self_slice = {self_slice}")
+                print(f"other_slice = {other_slice}")
+                raise
             
-        self._len = len(self) + len(other)
+        self._len = new_len
         return self    
             
     def valid(self):
         return self[0:self._len]  
 
 if __name__ == "__main__":
+    
     # Initialize stack having size 10 reserved
     pstack = ParticleArray(10)
 
@@ -209,9 +241,22 @@ if __name__ == "__main__":
 
     print(pstack.valid().energy)
     
-    pstack1 = ParticleArray(100)
-    pstack1.append(pstack).append(pstack).append(pstack)
-    print(np.where(np.in1d(pstack1.valid().pid, np.array([888])))[0])
+    pstack1 = ParticleArray(5)
+    pstack1._increase_size(10)
+    # pstack1.append(pstack).append(pstack)
+    print(pstack1.valid().pid)
+    print(pstack1.pid)
+    print(len(pstack1))
+    print(pstack1.reserved_size())
+    # pstack1 = pstack1._increase_size()
+    # pstack1 = pstack1._increase_size()
+    # gc.collect()
+    # print(len(pstack1))
+    # print(pstack1.pid)
+    
+    
+    # pstack1.append(pstack).append(pstack).append(pstack)
+    # print(np.where(np.in1d(pstack1.valid().pid, np.array([888])))[0])
     # print(pstack1.valid()[np.where(pstack1.valid().pid in [888, 777])].pid)
     
 
