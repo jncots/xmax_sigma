@@ -7,7 +7,6 @@ chormo_path = Path(chromo.__file__).parent
 
 class DecayDriver:
     def __init__(self, xdepth_getter, decaying_pdgs = None, stable_pdgs = None):
-        self._number_of_decays = 0
         self._xdepth_getter = xdepth_getter
         self._decaying_pdgs = decaying_pdgs
         self._stable_pdgs = stable_pdgs
@@ -92,7 +91,7 @@ class DecayDriver:
 
             
         
-    def run_decay(self, pstack):
+    def run_decay(self, pstack, final_particles):
         """Run decay of particle in pstack
                 
         FilterCode.XD_DECAY_OFF.value for `filter_code` should be set for particles 
@@ -124,7 +123,7 @@ class DecayDriver:
         # Decay it
         self._pythia.forceHadronLevel()
         
-        self._number_of_decays = len(np.where(self._pythia.event.status() == 2)[0])
+        number_of_decays = len(np.where(self._pythia.event.status() == 2)[0])
         # Process event from Pythia
         decay_stack = ParticleArray()     
         decay_stack.push(pid = self._pythia.event.pid(),
@@ -140,13 +139,9 @@ class DecayDriver:
         parents = self._pythia.event.parents()[:,0]        
         self._fill_xdepth_for_decay_chain(decay_stack, parents, len(pstack))
         # Filter final particles
-        self._final_particles = decay_stack[np.where(self._pythia.event.status() == 1)]    
-    
-    def get_final_particles(self):
-        return self._final_particles
-    
-    def get_number_of_decays(self):
-        return self._number_of_decays
+        final_particles.append(decay_stack[np.where(self._pythia.event.status() == 1)])
+        
+        return number_of_decays
         
 
 if __name__ == "__main__":
@@ -169,14 +164,15 @@ if __name__ == "__main__":
                             # decaying_pdgs=[111, -211, 211, -13, 13],
                             )
     
-    decay_driver.run_decay(pstack)
-    fstack = decay_driver.get_final_particles().valid()
+    final_particles = ParticleArray()
+    number_of_decays = decay_driver.run_decay(pstack, final_particles=final_particles)
+    fstack = final_particles.valid()
     print("pid = ", fstack.pid)
     print("energy = ", fstack.energy)
     print("xdepth_decay = ", fstack.xdepth_decay)
     print("xdepth = ", fstack.xdepth)
     print("gen_num = ", fstack.generation_num)
     print("number of finals = ", len(fstack))
-    print("number of decays = ", decay_driver.get_number_of_decays())
+    print("number of decays = ", number_of_decays)
     
        

@@ -101,6 +101,7 @@ class ParticleArray:
             self_value = getattr(self, attr)
             self_value[slice_] = other_value
         
+        
 
     def reserved_size(self):
         return len(self.pid)
@@ -132,9 +133,12 @@ class ParticleArray:
                 # If you met a problem here, it means
                 # that you gave len(pid) > len(other_data array)
                 # Arrays should be equal
-                data_attr[dst_slice] = np.copy(value[src_slice])
+                if getattr(value, "__len__", None) is None:
+                    data_attr[dst_slice] = value
+                else:
+                    data_attr[dst_slice] = value[src_slice]
         self._len = dst_end
-        self.valid_code[dst_slice].fill(1)
+        self.valid_code[dst_slice] = 1
         return dst_slice
     
     def push_one(self, **kwargs):
@@ -241,12 +245,15 @@ if __name__ == "__main__":
     print(pstack.valid().energy)
     
     pstack1 = ParticleArray(5)
-    pstack1._increase_size(10)
+    pstack1.push(pid = np.array([888, 342, 777]), energy = 20, xdepth = 13)
     # pstack1.append(pstack).append(pstack)
     print(pstack1.valid().pid)
-    print(pstack1.pid)
-    print(len(pstack1))
-    print(pstack1.reserved_size())
+    print(pstack1.valid().energy)
+    print(pstack1.valid().xdepth)
+    print(pstack1.valid().valid_code)
+    # print(pstack1.pid)
+    # print(len(pstack1))
+    # print(pstack1.reserved_size())
     # pstack1 = pstack1._increase_size()
     # pstack1 = pstack1._increase_size()
     # gc.collect()

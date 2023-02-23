@@ -20,17 +20,18 @@ class NextDecayXdepth:
         self.max_xdepth = xdepth_conversion.get_max_xdepth()
          
          
-    def get_xdepth(self, pstack):       
-        pslice = slice(0, len(pstack))
-        pdg = pstack.pid[pslice]
-        energy = pstack.energy[pslice]
-        xdepth = pstack.xdepth[pslice]
-        pstack.xdepth_decay[pslice] = (self.decay_xdepth
-                                       .get_xdepth(pdg, energy, xdepth))
+    def get_xdepth(self, pstack):
+        """Set xdepth_decay and filter_code for pstack[0:len(pstack)]
+        """       
+        pvalid = pstack.valid()
+        pvalid.xdepth_decay[:] = (self.decay_xdepth
+                                       .get_xdepth(pdg = pvalid.pid, 
+                                                   energy = pvalid.energy, 
+                                                   xdepth = pvalid.xdepth))
         
         # If we need inf at the Earth surface
         # pstack.xdepth_decay[np.where(pstack.xdepth_decay[pslice] >= self.max_xdepth)] = np.inf
-        pstack.filter_code[pslice] = FilterCode.XD_DECAY_ON.value
+        pstack.filter_code[:] = FilterCode.XD_DECAY_ON.value
         
 class NextInterXdepth:
     def __init__(self, *, xdepth_conversion):        
@@ -41,17 +42,19 @@ class NextInterXdepth:
         self.inter_xdepth = CrossSectionOnTable(cs_table)
         self.max_xdepth = xdepth_conversion.get_max_xdepth()
          
-    def get_xdepth(self, pstack):       
-        pslice = slice(0, len(pstack))
-        pdg = pstack.pid[pslice]
-        energy = pstack.energy[pslice]
-        xdepth = pstack.xdepth[pslice]
+    def get_xdepth(self, pstack):
+        """Set xdepth_inter for pstack[0:len(pstack)]
+        
+        Make sure that pstack._len is correct
+        """       
+        pvalid = pstack.valid()
         result_with_infs = (self.inter_xdepth
-                                       .get_xdepth(pdg, energy) + xdepth)
+                            .get_xdepth(pdg = pvalid.pid, 
+                                        energy = pvalid.energy) + pvalid.xdepth)
         
         # pstack.xdepth_decay[np.where(result_with_infs >= self.max_xdepth)] = np.inf
                        
-        pstack.xdepth_inter[pslice] = np.where(result_with_infs == np.inf, 
+        pvalid.xdepth_inter[:] = np.where(result_with_infs == np.inf, 
                                                self.max_xdepth, result_with_infs)
         
 
@@ -110,8 +113,8 @@ if __name__ == "__main__":
     next_inter.get_xdepth(pstack)
     
     print("After")
-    print(pstack.xdepth_decay[0:len(pstack)])
-    print(pstack.xdepth_inter[0:len(pstack)])
+    print(pstack.valid().xdepth_decay)
+    print(pstack.valid().xdepth_inter)
     
     
          

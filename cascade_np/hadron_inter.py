@@ -1,71 +1,85 @@
 import chromo
 from particle_array import ParticleArray
 import numpy as np
+import logging
 
 
 class HadronInteraction:
     def __init__(self):
-        self.target =  (14, 7)
+        self.target = (14, 7)
         ekin = chromo.kinematics.FixedTarget(20000, "proton", self.target)
         self.event_generator = chromo.models.Sibyll23d(ekin)
-        # self.children = ParticleArray(100000)
-        # self.failed_to_interact = None
     
     
-    def run_event_generator(self, pstack):
-        # pstack = ParticleArray()
-        self.children = ParticleArray()
-        self.failed_to_interact = None
+    def run_event_generator(self, parents, children, failed_parents):
         
-        for i in range(len(pstack)):
+        number_of_interactions = 0
+        pvalid = parents.valid()
+        pvalid.production_code[:] = 0
+        
+        for i in range(len(pvalid)):
             try:
                 self.event_generator.kinematics = chromo.kinematics.FixedTarget(
-                pstack.energy[i], int(pstack.pid[i]), self.target
+                    pvalid.energy[i], int(pvalid.pid[i]), self.target
                 )
-            except ValueError:
-                pstack.production_code[i] = 333
+            except Exception as e:
+                if "projectile" in str(e):
+                    # projectile is not allowed
+                    pvalid.production_code[i] = 111
+                elif "center-of-mass" in str(e):
+                    # center-of-mass energy  < minimum energy 10.0 GeV
+                    pvalid.production_code[i] = 222
+                else:
+                    pvalid.production_code[i] = 333
                 
+                continue    
                     
-            
             event = next(self.event_generator(1)).final_state()
-            generation_num = pstack.generation_num[i] + 1
-            self.children.push(pid = event.pid, 
+            number_of_interactions += 1
+            generation_num = pvalid.generation_num[i] + 1
+            children.push(pid = event.pid, 
                             energy = event.en, 
-                            xdepth = np.full(len(event), pstack.xdepth_inter[i]),
-                            generation_num = np.full(len(event), generation_num),
-                            production_code = np.full(len(event), 1))
+                            xdepth = pvalid.xdepth_inter[i],
+                            generation_num = generation_num,
+                            production_code = 777)
         
         
         
-        self.failed_to_interact = pstack[np.where(pstack.production_code == 333)]
-        pass    
-        # print("small = ", pstack.pid[np.where(pstack.production_code == 333)])
-        # print("small = ", pstack.energy[np.where(pstack.production_code == 333)])
+        failed_parents.append(pvalid[np.where(pvalid.production_code > 0)])
         
+        return number_of_interactions
         
-    def get_children(self):
-        return self.children
-
-    def get_failed(self):
-        return self.failed_to_interact
 
 if __name__ == "__main__":
     
     hint = HadronInteraction()
     
-    pstack = ParticleArray()
-    pstack.push(pid = 2212, energy = 1e5, xdepth = 0, xdepth_inter = 5, generation_num = 0)
+    parents = ParticleArray()
+    children = ParticleArray()
+    failed_parents = ParticleArray()
     
-    hint.run_event_generator(pstack)
-    ch = hint.get_children().valid().copy()
-    hint.run_event_generator(ch)
-    ch = hint.get_children().valid().copy()
-    hint.run_event_generator(ch)
-    ch = hint.get_children().valid()
+    parents.push(pid = 2212, energy = 1e5, xdepth = 0, xdepth_inter = 5, generation_num = 0)
+    
+    hint.run_event_generator(parents, children, failed_parents)
+    parents1 = children.valid().copy()
+    hint.run_event_generator(parents1, children, failed_parents)
+    # hint.run_event_generator(ch)
+    # ch = hint.get_children().valid().copy()
+    # hint.run_event_generator(ch)
+    # ch = hint.get_children().valid()
+    ch = children.valid()
+    fp = failed_parents.valid()
     print("pid = ", ch.pid)
     print("energy = ", ch.energy)
     print("xdepth = ", ch.xdepth)
     print("generation = ", ch.generation_num)
     print("valid_code = ", ch.valid_code)
     print(len(ch))
+    
+    print("pid = ", fp.pid)
+    print("energy = ", fp.energy)
+    print("xdepth = ", fp.xdepth)
+    print("generation = ", fp.generation_num)
+    print("valid_code = ", fp.production_code)
+    print(len(fp))
     
