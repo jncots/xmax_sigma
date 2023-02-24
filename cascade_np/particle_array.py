@@ -218,12 +218,7 @@ class ParticleArray:
         for attr in other.data_attributes:
             val_other = getattr(other, attr)
             val_self = getattr(self, attr)
-            try:
-                val_self[self_slice] = val_other[other_slice]
-            except:
-                print(f"self_slice = {self_slice}")
-                print(f"other_slice = {other_slice}")
-                raise
+            val_self[self_slice] = val_other[other_slice]
             
         self._len = new_len
         return self    

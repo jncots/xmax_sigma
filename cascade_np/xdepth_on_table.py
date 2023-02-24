@@ -8,10 +8,17 @@ class XdepthOnTable:
         # Make height and length vector
         self.height = np.linspace(0, xdepth_conversion.get_max_height(), npoints, dtype="float64")
         self.length = self.height / np.cos(theta_deg * np.pi / 180)
+        
+        # print(self.length/1e5)
+        # print(xdepth_conversion.get_max_height()/1e5)
+        # print(xdepth_conversion.get_max_xdepth())
+        
 
         # Calculate xdepth vector
         xdepth_fun = np.frompyfunc(lambda x: np.float64(xdepth_conversion.convert_h2x(x)), 1, 1)
         self.xdepth = xdepth_fun(self.height).astype("float64")
+        
+        # print(self.xdepth)
 
         # Revert vectors for interpolation
         self.rev_height = np.copy(self.height[::-1])
@@ -33,31 +40,32 @@ class XdepthOnTable:
             length_vec (np.array): delta length
         """
         length = np.interp(xdepth_vec, self.rev_xdepth, self.rev_length) - length_vec
+        # print(length)
         return np.interp(length, self.length, self.xdepth)
 
 
 if __name__ == "__main__":
     xconv = XdepthOnTable()
+    
+    # nn = 1000000
 
-    nn = 1000000
+    # xdepth = np.array(np.zeros(nn), dtype="float64")
+    # dlen = np.random.rand(nn) * 1e7
+    # # print(dlen)
+    # import time
 
-    xdepth = np.array(np.zeros(nn), dtype="float64")
-    dlen = np.random.rand(nn) * 1e7
-    # print(dlen)
-    import time
-
-    start = time.process_time()
-    xconv.add_len2x(xdepth, dlen)
-    print((time.process_time() - start) / nn)
+    # start = time.process_time()
+    # xconv.add_len2x(xdepth, dlen)
+    # print((time.process_time() - start) / nn)
 # np.zeros(10000)
 
 # np.random.rand()*1e7
 
-# xdepth = np.array(np.zeros(10000),dtype='float64')
-# dlen = np.array([1, 2, 3, 4],dtype='float64') * 1e8
-# print(dlen)
+    xdepth = np.full(4, np.inf,dtype='float64')
+    dlen = np.full(4 , np.inf,dtype='float64') * 1e9
+    # print(dlen)
 
-# print(xconv.add_len2x(xdepth, dlen))
+    print(xconv.add_len2x(xdepth, dlen))
 
 # print(np.random.rand(5)*1e7)
 

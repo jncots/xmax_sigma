@@ -5,17 +5,6 @@ from particle_array import ParticleArray, FilterCode
 
 chormo_path = Path(chromo.__file__).parent
 
-def check_xdepth(stack):
-    svalid = stack.valid()
-    wrong = np.where(np.logical_or(svalid.xdepth < 0, svalid.xdepth > 1200))[0]
-    if len(wrong):
-        raise ValueError(f"wrong = {wrong}"
-                         f"xdepth = {svalid.xdepth[wrong]}")
-        
-    wrong_decay = np.where(np.logical_or(svalid.xdepth_decay < 0, svalid.xdepth_decay > 1200))[0]    
-    if len(wrong_decay):
-        raise ValueError(f"wrong_decay = {wrong_decay}"
-                         f"xdepth_decay = {svalid.xdepth_decay[wrong_decay]}")    
 
 class DecayDriver:
     def __init__(self, xdepth_getter, decaying_pdgs = None, stable_pdgs = None):
@@ -73,7 +62,6 @@ class DecayDriver:
             `parents` (np.array): parent information
             `zero_generation_length` (int): length of 0th generation particles (the ones that decayed)
         """
-        # check_xdepth(pstack)
         # parent_indices contains 0-based indices in pstack arrays
         # The last element is introduced for the indicies == -1
         # for "no parent" case
@@ -90,14 +78,7 @@ class DecayDriver:
             generation_slice = np.where((parent_gen < zero_generation_length) & (parent_gen > -1))[0]
             # generation_slice contains elements for current generation (starting with 1st generation)
             # parent_indices[generation_slice] are corresponding indicies of parents
-            pstack.xdepth[generation_slice] = pstack.xdepth_decay[parent_indices[generation_slice]]
-            
-            
-            wrong = np.where(np.logical_or(pstack.xdepth[generation_slice] < 0, pstack.xdepth[generation_slice] > 1200))[0]
-            if len(wrong):
-                pass
-                raise ValueError(f"wrong = {wrong}")
-            
+            pstack.xdepth[generation_slice] = pstack.xdepth_decay[parent_indices[generation_slice]]            
             pstack.generation_num[generation_slice] = pstack.generation_num[parent_indices[generation_slice]] + 1
             # Set filter code to fill it in "set_xdepth_code()""
             pstack.filter_code[generation_slice] = FilterCode.XD_DECAY_OFF.value
@@ -122,9 +103,7 @@ class DecayDriver:
         """
         
         # Set xdepth_decay for particles which doesn't have it
-        self._set_xdepth_decay(pstack)
-        check_xdepth(pstack)
-        
+        self._set_xdepth_decay(pstack)   
         # Fill the Pythia stack of particles that should decay
         self._pythia.event.reset()
         for ip in range(len(pstack)):
@@ -152,10 +131,11 @@ class DecayDriver:
         
         # Set 0th generation
         gen0_slice = slice(0, len(pstack))
-        decay_stack.valid().xdepth[gen0_slice] = pstack.valid().xdepth
-        decay_stack.valid().xdepth_decay[gen0_slice] = pstack.valid().xdepth_decay
-        decay_stack.valid().generation_num[gen0_slice] = pstack.valid().generation_num
-        decay_stack.valid().filter_code[gen0_slice] = pstack.valid().filter_code
+        dsv = decay_stack.valid()
+        dsv.xdepth[gen0_slice] = pstack.valid().xdepth
+        dsv.xdepth_decay[gen0_slice] = pstack.valid().xdepth_decay
+        dsv.generation_num[gen0_slice] = pstack.valid().generation_num
+        dsv.filter_code[gen0_slice] = pstack.valid().filter_code
         
         # Get parents array and fill in rest generations
         parents = self._pythia.event.parents()[:,0]        
@@ -164,11 +144,6 @@ class DecayDriver:
         fin_status = self._pythia.event.status() == 1
         decayed_slice = fin_status[gen0_slice]
         final_slice = fin_status[len(pstack):]
-        
-        # print("decay_stack = ", decay_stack.valid().pid)
-        # print("event.status() = ", self._pythia.event.status())
-        # print("decayed_slice = ", decayed_slice)
-        # print("final_slice = ", final_slice)
         
         final_particles.append(decay_stack[len(pstack):][np.where(final_slice)])
         stable_particles.append(decay_stack[np.where(decayed_slice)])
