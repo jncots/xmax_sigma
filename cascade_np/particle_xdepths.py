@@ -54,7 +54,7 @@ class NextInterXdepth:
         
         # pstack.xdepth_decay[np.where(result_with_infs >= self.max_xdepth)] = np.inf
                        
-        pvalid.xdepth_inter[:] = np.where(result_with_infs == np.inf, 
+        pvalid.xdepth_inter[:] = np.where(result_with_infs >= self.max_xdepth, 
                                                self.max_xdepth, result_with_infs)
         
 

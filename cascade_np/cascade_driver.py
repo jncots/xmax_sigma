@@ -31,16 +31,34 @@ class CascadeDriver:
         
         self.number_of_decays = 0
         self.number_of_interactions = 0
+        self.final_stack.clear()
+        self.decay_stack.clear()
+        self.working_stack.clear()
         
         self.working_stack.push(pid = pdg, 
                          energy = energy, 
-                         xdepth = xdepth)
+                         xdepth = xdepth,
+                         generation_num = 0)
         
         iloop = 1
         while len(self.working_stack) > 0:
             
+            if len(self.working_stack) in [1, 2, 3]:
+                print("pid = ", self.working_stack.valid().pid)
+                print("energy = ", self.working_stack.valid().energy)
+                print("xdepth = ", self.working_stack.valid().xdepth)
+                print("xdepth_decay = ", self.working_stack.valid().xdepth_decay)
+                print("xdepth_inter = ", self.working_stack.valid().xdepth_inter)
+                print("gen_num = ", self.working_stack.valid().generation_num)
+            
             print(f"{iloop} Number of inter = {self.number_of_interactions}"
                   f" number of decays = {self.number_of_decays}")
+            
+            print(f"Final = {len(self.final_stack)}"
+                  f" Decaying = {len(self.decay_stack)}"
+                  f" Children = {len(self.children_stack)}"
+                  f" Working = {len(self.working_stack)}"
+                  )
             self.set_xdepths()
             self.run_interaction()
             self.filter_particles()
@@ -77,6 +95,10 @@ class CascadeDriver:
             _type_: _description_
         """
         
+        # print("xdepth = ", np.where(np.abs(self.working_stack.valid().xdepth) > 2000)[0])
+        # print("pid = ", self.working_stack.pid[np.where(np.abs(self.working_stack.valid().xdepth) > 2000)[0]])
+        # print("xdepth = ", self.working_stack.xdepth[np.where(np.abs(self.working_stack.valid().xdepth) > 2000)[0]])
+        
         self.xdepth_getter.get_decay_xdepth(self.working_stack)
         self.xdepth_getter.get_inter_xdepth(self.working_stack)
         
@@ -85,11 +107,34 @@ class CascadeDriver:
         max_xdepth = self.xdepth_getter.max_xdepth
         
         # Copies of particles with specific properties
+        
+        hit_earth = np.logical_and(pvalid.xdepth_inter >= max_xdepth,
+                                   pvalid.xdepth_decay >= max_xdepth)
+        
+        will_interact = pvalid.xdepth_inter < pvalid.xdepth_decay
+        will_decay = pvalid.xdepth_decay < pvalid.xdepth_inter
+        
+        res = np.where(hit_earth, 1, 0) + np.where(will_interact, 1, 0) + np.where(will_decay, 1, 0)
+        
+        if len(np.where(res > 1)[0]) > 0:
+            raise AssertionError(f"res = {np.where(res > 1)[0]}\n"
+                                 f" pvalid.pid = {pvalid.pid[np.where(res > 1)[0]]}\n" 
+                                 f" pvalid.xdepth = {pvalid.xdepth[np.where(res > 1)[0]]}\n"
+                                 f" pvalid.xdepth_inter = {pvalid.xdepth_inter[np.where(res > 1)[0]]}\n"
+                                 f" pvalid.xdepth_decay = {pvalid.xdepth_decay[np.where(res > 1)[0]]}")
+        
         self.final_stack.append(pvalid[np.where((pvalid.xdepth_inter >= max_xdepth) &
                                 (pvalid.xdepth_decay >= max_xdepth))[0]])
         
         self.inter_stack = pvalid[np.where(pvalid.xdepth_inter < pvalid.xdepth_decay)[0]]
-        self.decay_stack.append(pvalid[np.where(pvalid.xdepth_decay < pvalid.xdepth_inter )[0]])
+        self.decay_stack.append(pvalid[np.where(pvalid.xdepth_decay < pvalid.xdepth_inter)[0]])
+        
+        print(f"After set_xdepths:")
+        print(f"working = {len(self.working_stack)}")
+        print(f"interac = {len(self.inter_stack)}")
+        print(f"decaying = {len(self.decay_stack)}")
+        
+        
         
     
     def run_interaction(self):
@@ -99,6 +144,12 @@ class CascadeDriver:
                                                     parents = self.inter_stack, 
                                                     children = self.children_stack, 
                                                     failed_parents = self.failed_stack)
+        
+        print("After run inter:")
+        print(f"children = {len(self.children_stack)}")
+        print(f"failded = {len(self.failed_stack)}")
+        print(f"ninter = {self.number_of_interactions}")
+        
               
         if len(self.failed_stack) > 0:
             fvalid = self.failed_stack.valid()
@@ -108,6 +159,11 @@ class CascadeDriver:
             decaying_particles = fvalid[np.where(finals_false)]
             decaying_particles.filter_code[:] = FilterCode.XD_DECAY_OFF.value
             self.decay_stack.append(decaying_particles)
+            
+            print("Distribute failed stack")
+            print(f"append to finals = {len(finals_false)}")
+            print(f"append to decay = {len(decaying_particles)}")
+            
            
          
     def filter_particles(self):
@@ -119,17 +175,30 @@ class CascadeDriver:
         self.decay_stack.append(cstack[np.where(decaying_true)[0]])
         
         finals_true = np.logical_or(np.isin(cstack.pid, self.pdg_lists.mceq_finals), 
-                                    (cstack.energy < self.threshold_energy))
+                                    np.logical_and(cstack.energy < self.threshold_energy,
+                                                   np.logical_not(np.isin(cstack.pid, decay_pdgs))))
         self.final_stack.append(cstack[np.where(finals_true)[0]])
         
         working_true = np.logical_not(np.logical_or(decaying_true, finals_true))
         self.working_stack.clear()
+        print("After clear self.working_stack = ", len(self.working_stack))
         self.working_stack.append(cstack[np.where(working_true)[0]])
+        print("After append self.working_stack = ", len(self.working_stack))
+        
+        print("From children:")
+        print(f"to working_stack = {len(working_true)}")
+        print(f"to finals = {len(finals_true)}")
+        print(f"cstack = {len(cstack)}")
+        
         
     
     def decay_particles(self):
+        if len(self.decay_stack) == 0:
+            return
         self.working_stack.clear()
-        self.number_of_decays += self.decay_driver.run_decay(self.decay_stack, self.working_stack)
+        self.number_of_decays += self.decay_driver.run_decay(self.decay_stack, 
+                                                             final_particles=self.working_stack,
+                                                             stable_particles=self.final_stack)
         self.decay_stack.clear()
 
         

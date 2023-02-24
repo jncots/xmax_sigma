@@ -206,6 +206,9 @@ class ParticleArray:
         if not isinstance(other, ParticleArray):
             raise ValueError("argument is not a ParticleArray object")
         
+        if len(other) == 0:
+            return self
+        
         other_slice =  slice(0, len(other))
         new_len = len(self) + len(other)
         self_slice = slice(len(self), new_len)
