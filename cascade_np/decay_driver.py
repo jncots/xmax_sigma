@@ -5,6 +5,18 @@ from particle_array import ParticleArray, FilterCode
 
 chormo_path = Path(chromo.__file__).parent
 
+def check_xdepth(stack):
+    svalid = stack.valid()
+    wrong = np.where(np.logical_or(svalid.xdepth < 0, svalid.xdepth > 1200))[0]
+    if len(wrong):
+        raise ValueError(f"wrong = {wrong}"
+                         f"xdepth = {svalid.xdepth[wrong]}")
+        
+    wrong_decay = np.where(np.logical_or(svalid.xdepth_decay < 0, svalid.xdepth_decay > 1200))[0]    
+    if len(wrong_decay):
+        raise ValueError(f"wrong_decay = {wrong_decay}"
+                         f"xdepth_decay = {svalid.xdepth_decay[wrong_decay]}")    
+
 class DecayDriver:
     def __init__(self, xdepth_getter, decaying_pdgs = None, stable_pdgs = None):
         self._xdepth_getter = xdepth_getter
@@ -43,7 +55,7 @@ class DecayDriver:
         Args:
             pstack (ParticleArray): array of particle which need to set xdepth_decay
         """
-        slice_to_fill = np.where(pstack.valid().filter_code == FilterCode.XD_DECAY_OFF.value)[0]
+        slice_to_fill = np.where(pstack.valid().filter_code != FilterCode.XD_DECAY_ON.value)[0]
         # stack_to_fill is a copy, because of advanced indexing in numpy
         stack_to_fill = pstack[slice_to_fill]
         self._xdepth_getter.get_decay_xdepth(stack_to_fill)
@@ -61,7 +73,7 @@ class DecayDriver:
             `parents` (np.array): parent information
             `zero_generation_length` (int): length of 0th generation particles (the ones that decayed)
         """
-        
+        # check_xdepth(pstack)
         # parent_indices contains 0-based indices in pstack arrays
         # The last element is introduced for the indicies == -1
         # for "no parent" case
@@ -79,6 +91,13 @@ class DecayDriver:
             # generation_slice contains elements for current generation (starting with 1st generation)
             # parent_indices[generation_slice] are corresponding indicies of parents
             pstack.xdepth[generation_slice] = pstack.xdepth_decay[parent_indices[generation_slice]]
+            
+            
+            wrong = np.where(np.logical_or(pstack.xdepth[generation_slice] < 0, pstack.xdepth[generation_slice] > 1200))[0]
+            if len(wrong):
+                pass
+                raise ValueError(f"wrong = {wrong}")
+            
             pstack.generation_num[generation_slice] = pstack.generation_num[parent_indices[generation_slice]] + 1
             # Set filter code to fill it in "set_xdepth_code()""
             pstack.filter_code[generation_slice] = FilterCode.XD_DECAY_OFF.value
@@ -101,8 +120,10 @@ class DecayDriver:
         Args:
             pstack (ParticleArray): stack with decaying particles
         """
+        
         # Set xdepth_decay for particles which doesn't have it
         self._set_xdepth_decay(pstack)
+        check_xdepth(pstack)
         
         # Fill the Pythia stack of particles that should decay
         self._pythia.event.reset()
@@ -131,6 +152,7 @@ class DecayDriver:
         
         # Set 0th generation
         gen0_slice = slice(0, len(pstack))
+        decay_stack.valid().xdepth[gen0_slice] = pstack.valid().xdepth
         decay_stack.valid().xdepth_decay[gen0_slice] = pstack.valid().xdepth_decay
         decay_stack.valid().generation_num[gen0_slice] = pstack.valid().generation_num
         decay_stack.valid().filter_code[gen0_slice] = pstack.valid().filter_code
