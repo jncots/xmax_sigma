@@ -1,22 +1,30 @@
 import numpy as np
 from particle_array import ParticleArray, FilterCode
 from pdg_pid_map import PdgLists
-from particle_xdepths import default_xdepth_getter
+from particle_xdepths import DefaultXdepthGetter
 from hadron_inter import HadronInteraction
 from decay_driver import DecayDriver
 import numpy as np
+import time
 
 
 class CascadeDriver:
-    def __init__(self, xdepth_getter = default_xdepth_getter, threshold_energy = 1e3):
+    def __init__(self, xdepth_getter = DefaultXdepthGetter(), threshold_energy = 1e3):
         self.threshold_energy = threshold_energy
         self.xdepth_getter = xdepth_getter
         self.pdg_lists = PdgLists()
         self.hadron_interaction = HadronInteraction()
-        self.decay_driver = DecayDriver(default_xdepth_getter, 
+        self.decay_driver = DecayDriver(self.xdepth_getter, 
                             decaying_pdgs=[111], 
                             stable_pdgs=[-211, 211, -13, 13],
+                            # decaying_pdgs=[111, -211, 211, 
+                            #                -3212, 3212, -3222, 3222, -3112, 3112, -3322, 3322, -3312,  3312],
+                            # stable_pdgs=[-13, 13],
                             )
+        
+
+
+
         
         
         self.working_stack = ParticleArray()
@@ -28,6 +36,8 @@ class CascadeDriver:
     
     
     def run(self, *, pdg, energy, xdepth = 0):
+        self.initial_energy = energy
+        self.initial_pdg = pdg
         
         self.number_of_decays = 0
         self.number_of_interactions = 0
@@ -41,19 +51,48 @@ class CascadeDriver:
                          generation_num = 0)
         
         iloop = 1
+        
+        
+        start_time = time.time()        
         while len(self.working_stack) > 0:
             
             print(f"{iloop} Number of inter = {self.number_of_interactions}"
                   f" number of decays = {self.number_of_decays}")
-            self.set_xdepths()            
+            
+            self.search_for_muons(1)
+            self.set_xdepths()   
+            
+            self.search_for_muons(2)         
             self.run_interaction()
+            
+            self.search_for_muons(3)
             self.filter_particles()
+            
+            self.search_for_muons(4)
             if len(self.working_stack) == 0:
                 self.decay_particles()
             
             iloop += 1
         
+        self.loop_execution_time = time.time() - start_time
+    
+    def contains_muons(self,stack, name):
+        muon_number = len(np.where(np.isin(stack.valid().pid, [-13, 13]))[0])
+        if muon_number > 1:
+            print(f"{name} has {muon_number} muons")
         
+    
+    def search_for_muons(self, number):
+        
+        self.contains_muons(self.working_stack, f"{number} working_stack")
+        self.contains_muons(self.final_stack, f"{number} final_stack")
+        self.contains_muons(self.decay_stack, f"{number} decay_stack")
+        self.contains_muons(self.inter_stack, f"{number} inter_stack")
+        self.contains_muons(self.failed_stack, f"{number} failed_stack")
+        self.contains_muons(self.children_stack, f"{number} children_stack")
+
+        
+            
     
     
     def set_xdepths(self):
@@ -107,6 +146,8 @@ class CascadeDriver:
          
     def filter_particles(self):
         decay_pdgs = np.array([111], dtype = np.int32)
+        # decay_pdgs = np.array([111, -211, 211, 
+        # -3212, 3212, -3222, 3222, -3112, 3112, -3322, 3322, -3312,  3312], dtype = np.int32)
         
         cstack = self.children_stack.valid()
         

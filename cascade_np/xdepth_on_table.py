@@ -4,22 +4,17 @@ import numpy as np
 
 class XdepthOnTable:
     def __init__(self, *, xdepth_conversion = XdepthConversion(), npoints=1000):
-        theta_deg = xdepth_conversion.get_theta()
+        
+        # Save arguments
+        self.xdepth_conversion = xdepth_conversion
+        self.npoints = npoints
         # Make height and length vector
-        self.height = np.linspace(0, xdepth_conversion.get_max_height(), npoints, dtype="float64")
-        self.length = self.height / np.cos(theta_deg * np.pi / 180)
-        
-        # print(self.length/1e5)
-        # print(xdepth_conversion.get_max_height()/1e5)
-        # print(xdepth_conversion.get_max_xdepth())
-        
-
+        self.height = np.linspace(0, self.xdepth_conversion.get_max_height(), npoints, dtype="float64")
+        self.length = self.height / np.cos(self.xdepth_conversion.get_theta() * np.pi / 180)
         # Calculate xdepth vector
-        xdepth_fun = np.frompyfunc(lambda x: np.float64(xdepth_conversion.convert_h2x(x)), 1, 1)
+        xdepth_fun = np.frompyfunc(lambda x: np.float64(self.xdepth_conversion.convert_h2x(x)), 1, 1)
         self.xdepth = xdepth_fun(self.height).astype("float64")
         
-        # print(self.xdepth)
-
         # Revert vectors for interpolation
         self.rev_height = np.copy(self.height[::-1])
         self.rev_length = np.copy(self.length[::-1])
@@ -66,6 +61,7 @@ if __name__ == "__main__":
     # print(dlen)
 
     print(xconv.add_len2x(xdepth, dlen))
+    print(xconv.xdepth_conversion.get_max_xdepth())
 
 # print(np.random.rand(5)*1e7)
 

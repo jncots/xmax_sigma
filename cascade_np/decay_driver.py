@@ -30,10 +30,12 @@ class DecayDriver:
         self._pythia.init()
         
         if self._stable_pdgs is not None:
+            print(f"Stable pdgs = {self._stable_pdgs}")
             for pdg in self._stable_pdgs:
                 self._pythia.particleData.mayDecay(pdg, False)
                 
         if self._decaying_pdgs is not None:
+            print(f"Decaying pdgs = {self._decaying_pdgs}")
             for pdg in self._decaying_pdgs:
                 self._pythia.particleData.mayDecay(pdg, True)
     

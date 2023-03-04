@@ -11,13 +11,12 @@ import numpy as np
 
 
 class NextDecayXdepth:
-    def __init__(self, *, xdepth_conversion):   
-        xdepth_on_table = XdepthOnTable(xdepth_conversion = xdepth_conversion, npoints=1000)
+    def __init__(self, *, xdepth_on_table):   
         particle_properties = ParticlePropertiesParticle()
         tab_particle_properties = TabulatedParticleProperties(particle_properties=particle_properties)
         self.decay_xdepth = DecayXdepth(tab_particle_properties=tab_particle_properties,
                                         xdepth_on_table=xdepth_on_table)
-        self.max_xdepth = xdepth_conversion.get_max_xdepth()
+        self.max_xdepth = xdepth_on_table.xdepth_conversion.get_max_xdepth()
          
          
     def get_xdepth(self, pstack):
@@ -34,13 +33,13 @@ class NextDecayXdepth:
         pstack.filter_code[:] = FilterCode.XD_DECAY_ON.value
         
 class NextInterXdepth:
-    def __init__(self, *, xdepth_conversion):        
+    def __init__(self, *, xdepth_on_table):        
         cs_xdepth_conv = CSXdepthConversion()
         cs_table = CrossSectionTableMCEq(interaction_model="DPMJETIII191",
                                          cs_xdepth_conv = cs_xdepth_conv)
         cs_table.add_pdgs(PdgLists().longer_pi0_to_mceq)
         self.inter_xdepth = CrossSectionOnTable(cs_table)
-        self.max_xdepth = xdepth_conversion.get_max_xdepth()
+        self.max_xdepth = xdepth_on_table.xdepth_conversion.get_max_xdepth()
          
     def get_xdepth(self, pstack):
         """Set xdepth_inter for pstack[0:len(pstack)]
@@ -60,18 +59,19 @@ class NextInterXdepth:
 
 class DefaultXdepthGetter:
     def __init__(self, theta_deg = 0, mode="both"):
-        atmosphere = CorsikaAtmosphere("SouthPole", "December")
-        xconv =  XdepthConversion(atmosphere = atmosphere)
-        xconv.set_theta(theta_deg)
-        self.max_xdepth = xconv.get_max_xdepth()
+        self.atmosphere = CorsikaAtmosphere("SouthPole", "December")
+        self.xdepth_conversion =  XdepthConversion(atmosphere = self.atmosphere)
+        self.xdepth_conversion.set_theta(theta_deg)
+        self.max_xdepth = self.xdepth_conversion.get_max_xdepth()
+        self.xdepth_on_table = XdepthOnTable(xdepth_conversion = self.xdepth_conversion, npoints=1000)
 
         if mode == "both":
-            self.next_decay = NextDecayXdepth(xdepth_conversion=xconv)
-            self.next_inter = NextInterXdepth(xdepth_conversion=xconv)
+            self.next_decay = NextDecayXdepth(xdepth_on_table=self.xdepth_on_table)
+            self.next_inter = NextInterXdepth(xdepth_on_table=self.xdepth_on_table)
         elif mode == "decay":
-            self.next_decay = NextDecayXdepth(xdepth_conversion=xconv)
+            self.next_decay = NextDecayXdepth(xdepth_on_table=self.xdepth_on_table)
         elif mode == "inter":
-            self.next_inter = NextInterXdepth(xdepth_conversion=xconv)
+            self.next_inter = NextInterXdepth(xdepth_on_table=self.xdepth_on_table)
         else:
             raise ValueError("this should not happen")    
                 
@@ -84,7 +84,7 @@ class DefaultXdepthGetter:
         return self.next_inter.get_xdepth(pstack)
     
 # default_xdepth_getter = DefaultXdepthGetter(mode="decay")
-default_xdepth_getter = DefaultXdepthGetter()
+# default_xdepth_getter = DefaultXdepthGetter()
     
 
         
@@ -92,12 +92,14 @@ if __name__ == "__main__":
     from particle_array import ParticleArray
     import numpy as np
     
-    atmosphere = CorsikaAtmosphere("SouthPole", "December")
-    xconv =  XdepthConversion(atmosphere = atmosphere)
-    xconv.set_theta(30)
     
-    next_decay = NextDecayXdepth(xdepth_conversion=xconv)
-    next_inter = NextInterXdepth(xdepth_conversion=xconv)
+    atmosphere = CorsikaAtmosphere("SouthPole", "December")
+    xdepth_conversion =  XdepthConversion(atmosphere = atmosphere)
+    xdepth_conversion.set_theta(30)
+    xdepth_on_table = XdepthOnTable(xdepth_conversion = xdepth_conversion, npoints=1000)
+    
+    next_decay = NextDecayXdepth(xdepth_on_table=xdepth_on_table)
+    next_inter = NextInterXdepth(xdepth_on_table=xdepth_on_table)
     
     pstack = ParticleArray(size=100)
     pstack.push(
