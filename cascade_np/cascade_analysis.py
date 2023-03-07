@@ -23,6 +23,9 @@ class CascadeAnalysis:
         self.pack_data()
 
     def print_stats(self):
+        if self.cascade_driver.runs_number > 1:
+            print(f"Number of runs = {self.cascade_driver.runs_number}")
+            
         print(f"Initial state:")
         print(f"  {self.all_pdgs[self.cascade_driver.initial_pdg]}({self.cascade_driver.initial_pdg})"
               f" with energy = {self.cascade_driver.initial_energy:.3e}")                
@@ -34,12 +37,15 @@ class CascadeAnalysis:
         print(f"  Max number of generations = {np.max(self.cascade_driver.final_stack.valid().generation_num[:])}")
         print(f"\n  Max xdepth = {self.cascade_driver.xdepth_getter.max_xdepth}")
         print(f"  Exectution time = {self.cascade_driver.loop_execution_time:.2f} s")
+        if self.cascade_driver.runs_number > 1:
+            exec_time = self.cascade_driver.loop_execution_time/self.cascade_driver.runs_number
+            print(f"  Exectution time per run = {exec_time:.2f} s")
         print(f"  Size of cascade_driver object = {asizeof.asizeof(self.cascade_driver)/(1024**2):.2f} Mb")
         self.energy_conservation()
     
     
     def energy_conservation(self):     
-        etot = np.sum(self.energy_data)
+        etot = np.sum(self.energy_data)/self.cascade_driver.runs_number
         init_energy = self.cascade_driver.initial_energy
         conservation = (init_energy - etot)/init_energy
         
@@ -54,21 +60,39 @@ class CascadeAnalysis:
         self.energy_data = self.final_particles.energy
         self.xdepth_data = self.final_particles.xdepth
         self.height_data = self.cascade_driver.xdepth_getter.xdepth_on_table.convert_x2h(self.final_particles.xdepth)
-        # for particle in self.particles:
-        #     self.pid_data.append(particle.pid)
-        #     self.energy_data.append(particle.energy)
-        #     self.xdepth_data.append(particle.xdepth)
+        self.height_data = self.height_data * 1e-5
         
-    def calc_height(self):
-        xconv = XdepthConversion()
-        xconv.set_length_unit("km")
+        self.all_pids = list(set(self.pid_data))
+        self.all_pids.sort(key=lambda x: abs(x))
         
-        self.height_data = []
-        for i, ppid in enumerate(self.pid_data):
-            self.height_data.append(xconv.convert_x2h(self.xdepth_data[i]))
+        
+    def digitize(self):
+        
+        xdepth_grid_bins = np.linspace(0.1, self.cascade_driver.xdepth_getter.max_xdepth + 1, 101)
+        xdepth_grid_centers = (xdepth_grid_bins[0:-1] + xdepth_grid_bins[1:])/2
+        xdepth_grid_steps = xdepth_grid_bins[1:] - xdepth_grid_bins[0:-1]
+                
+        energy_grid_bins = np.geomspace(1e-1, 1e11, 121)
+        energy_grid_centers = (energy_grid_bins[0:-1] + energy_grid_bins[1:])/2
+        energy_grid_steps = energy_grid_bins[1:] - energy_grid_bins[0:-1]
+        
+        
+        hist_dict = {}
+        for pid in self.all_pids:            
+            en_vec = self.energy_data[np.where(self.pid_data == pid)[0]]
+            xd_vec = self.xdepth_data[np.where(self.pid_data == pid)[0]]
             
-        self._is_height = True
-
+            
+            npart = np.histogram2d(xd_vec, en_vec, 
+                           bins=(xdepth_grid_bins, energy_grid_bins))
+            
+            hist_dict[pid] = npart
+        
+        self.egrid = energy_grid_centers
+        self.xgrid = xdepth_grid_centers
+        self.hist_dict = hist_dict   
+            
+        
     def plot_pid(self, from_=None, to_=None):
 
         pid_dist = dict()
@@ -230,4 +254,73 @@ class CascadeAnalysis:
             plt.step(cnt[:-1], gr, label = f"all")
                 
             
-        plt.legend()         
+        plt.legend()
+        
+    def plot_xdepth_list(self, pids=None, 
+                         all_pids = None, 
+                         nbins = 100, 
+                         xrange = None,
+                         energy_range = None,
+                         per_run = None):
+        
+        
+        
+        if pids is None:
+            pids = self.all_pids
+        
+        print(pids)
+        
+        xdepth_data = []
+        
+        if energy_range:
+            energy_range = (energy_range[0]*1e-9, energy_range[1]*1e-9)
+            
+        
+        xdepth_data_e = []
+        pid_data_e = []
+             
+        if energy_range:
+            for i, hh in enumerate(self.xdepth_data):
+                if energy_range[0] <= self.energy_data[i] <= energy_range[1]:
+                    xdepth_data_e.append(hh)
+                    pid_data_e.append(self.pid_data[i])
+        else:
+            xdepth_data_e = self.xdepth_data
+            pid_data_e = self.pid_data
+            
+        if pids:
+            for pid in pids:
+                xdepth_data_pid = []
+                for i, ppid in enumerate(pid_data_e):
+                    if ppid == pid:
+                        xdepth_data_pid.append(xdepth_data_e[i])
+                xdepth_data.append(xdepth_data_pid)
+        
+        
+        xdepth_data_tot = xdepth_data_e                    
+
+        
+        print(f"Min = {np.min(self.xdepth_data):.2f} g/cm2, Max = {np.max(self.xdepth_data):.2f} g/cm2")
+        plt.title("Xdepth distribution")
+        plt.xlabel("Xdepth, g/cm2") 
+        
+        if per_run:
+            runs_number = self.cascade_driver.runs_number
+        else:
+            runs_number = 1    
+        
+        if pids:    
+            for i, pid in enumerate(pids):
+                gr, cnt = np.histogram(xdepth_data[i], bins = nbins, range = xrange)
+                grsum = np.cumsum(gr)
+                plt.step(cnt[:-1], gr/runs_number, label = f"{self.all_pdgs[pid]}")
+                plt.step(cnt[:-1], grsum/runs_number, label = f"cumul_{self.all_pdgs[pid]}")
+            
+        if all_pids:
+            gr, cnt = np.histogram(xdepth_data_tot, bins = nbins, range = xrange)
+            grsum = np.cumsum(gr)
+            plt.step(cnt[:-1], gr/runs_number, label = f"all")
+            plt.step(cnt[:-1], grsum/runs_number, label = f"cumul_all")
+                
+            
+        plt.legend()                      

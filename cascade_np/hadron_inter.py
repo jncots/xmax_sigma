@@ -9,6 +9,9 @@ class HadronInteraction:
         self.target = (14, 7)
         ekin = chromo.kinematics.FixedTarget(20000, "proton", self.target)
         self.event_generator = chromo.models.Sibyll23d(ekin)
+        # self.event_generator.set_unstable(111)
+        # self.event_generator.set_unstable(-211)
+        # self.event_generator.set_unstable(211)
     
     
     def run_event_generator(self, parents, children, failed_parents):

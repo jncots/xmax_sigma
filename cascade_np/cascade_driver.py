@@ -44,9 +44,25 @@ class CascadeDriver:
         
         
         self.decay_driver.set_decaying_pdgs(self.decaying_pdgs)
-        
     
-    def run(self, *, pdg, energy, xdepth = 0, mceq_decaying_pdgs = None):
+    
+    def start_accumulate(self):
+        self.initial_run = True
+        self.accumulate_runs = True   
+            
+    def stop_accumulate(self):
+        self.initial_run = True
+        self.accumulate_runs = False
+                
+    
+    def run(self, *, pdg, energy, 
+            xdepth = 0, 
+            mceq_decaying_pdgs = None, 
+            threshold_energy = None):
+        
+        
+        if threshold_energy is not None:
+            self.threshold_energy = threshold_energy
         self.initial_energy = energy
         self.initial_pdg = pdg
         
@@ -55,7 +71,16 @@ class CascadeDriver:
         
         self.number_of_decays = 0
         self.number_of_interactions = 0
-        self.final_stack.clear()
+        
+        if self.initial_run:
+            self.final_stack.clear()
+            self.loop_execution_time = 0
+            self.runs_number = 0
+            
+            if self.accumulate_runs:
+                self.initial_run = False  
+            
+        
         self.decay_stack.clear()
         self.working_stack.clear()
         
@@ -88,7 +113,8 @@ class CascadeDriver:
             
             iloop += 1
         
-        self.loop_execution_time = time.time() - start_time
+        self.loop_execution_time += time.time() - start_time
+        self.runs_number += 1
     
     def contains_muons(self,stack, name):
         muon_number = len(np.where(np.isin(stack.valid().pid, [-13, 13]))[0])
