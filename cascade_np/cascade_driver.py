@@ -9,22 +9,17 @@ import time
 
 
 class CascadeDriver:
-    def __init__(self, xdepth_getter = DefaultXdepthGetter(), threshold_energy = 1e3):
+    def __init__(self, xdepth_getter = DefaultXdepthGetter(), 
+                 threshold_energy = 1e3,
+                 mceq_decaying_pdgs = [111]):
+        
+           
         self.threshold_energy = threshold_energy
         self.xdepth_getter = xdepth_getter
-        self.pdg_lists = PdgLists()
         self.hadron_interaction = HadronInteraction()
-        self.decay_driver = DecayDriver(self.xdepth_getter, 
-                            decaying_pdgs=[111], 
-                            stable_pdgs=[-211, 211, -13, 13],
-                            # decaying_pdgs=[111, -211, 211, 
-                            #                -3212, 3212, -3222, 3222, -3112, 3112, -3322, 3322, -3312,  3312],
-                            # stable_pdgs=[-13, 13],
-                            )
-        
-
-
-
+        self.decay_driver = DecayDriver(self.xdepth_getter)
+        # Should be called after setting self.decay_driver
+        self.set_decaying_pdgs(mceq_decaying_pdgs)
         
         
         self.working_stack = ParticleArray()
@@ -35,9 +30,28 @@ class CascadeDriver:
         self.children_stack = ParticleArray()
     
     
-    def run(self, *, pdg, energy, xdepth = 0):
+    def set_decaying_pdgs(self, mceq_decaying_pdgs):
+        pdg_lists = PdgLists()
+        self.mceq_decaying_pdgs = np.array([mceq_decaying_pdgs], dtype = np.int32)
+        
+        # Make all mceq particles stable except the ones set as decaying
+        self.stable_pdgs = (pdg_lists.mceq_particles[np.where(np.logical_not(
+                            np.isin(pdg_lists.mceq_particles, self.mceq_decaying_pdgs)))[0]])
+        
+        # Make all pdgs decaying except the ones defined as stable
+        self.decaying_pdgs = (pdg_lists.pdgs_below_abs6000[np.where(np.logical_not(
+                            np.isin(pdg_lists.pdgs_below_abs6000, self.stable_pdgs)))[0]])
+        
+        
+        self.decay_driver.set_decaying_pdgs(self.decaying_pdgs)
+        
+    
+    def run(self, *, pdg, energy, xdepth = 0, mceq_decaying_pdgs = None):
         self.initial_energy = energy
         self.initial_pdg = pdg
+        
+        if mceq_decaying_pdgs is not None:
+            self.set_decaying_pdgs(mceq_decaying_pdgs)
         
         self.number_of_decays = 0
         self.number_of_interactions = 0
@@ -59,16 +73,16 @@ class CascadeDriver:
             print(f"{iloop} Number of inter = {self.number_of_interactions}"
                   f" number of decays = {self.number_of_decays}")
             
-            self.search_for_muons(1)
+            # self.search_for_muons(1)
             self.set_xdepths()   
             
-            self.search_for_muons(2)         
+            # self.search_for_muons(2)         
             self.run_interaction()
             
-            self.search_for_muons(3)
+            # self.search_for_muons(3)
             self.filter_particles()
             
-            self.search_for_muons(4)
+            # self.search_for_muons(4)
             if len(self.working_stack) == 0:
                 self.decay_particles()
             
@@ -114,10 +128,20 @@ class CascadeDriver:
         pvalid = self.working_stack.valid()
         max_xdepth = self.xdepth_getter.max_xdepth
         
-        # Copies of particles with specific properties        
-        self.final_stack.append(pvalid[np.where((pvalid.xdepth_inter >= max_xdepth) &
-                                (pvalid.xdepth_decay >= max_xdepth))[0]])
         
+        # Sort particles at the surface
+        at_surface = np.logical_and(pvalid.xdepth_inter >= max_xdepth, pvalid.xdepth_decay >= max_xdepth)
+        
+        should_decay = np.isin(pvalid.pid, self.decaying_pdgs)
+        should_not_decay = np.logical_not(should_decay)
+        
+        to_decay_stack = np.logical_and(should_decay, at_surface)
+        to_final_stack = np.logical_and(should_not_decay, at_surface)
+        
+        self.decay_stack.append(pvalid[np.where(to_decay_stack)[0]])        
+        self.final_stack.append(pvalid[np.where(to_final_stack)[0]])
+
+        # Sort particles which are still in the atmosphere
         self.inter_stack = pvalid[np.where(pvalid.xdepth_inter < pvalid.xdepth_decay)[0]]
         self.decay_stack.append(pvalid[np.where(pvalid.xdepth_decay < pvalid.xdepth_inter)[0]])
         
@@ -135,33 +159,33 @@ class CascadeDriver:
               
         if len(self.failed_stack) > 0:
             fvalid = self.failed_stack.valid()
-            finals_true = np.isin(fvalid.pid, self.pdg_lists.mceq_finals)
-            finals_false = np.logical_not(finals_true)           
-            self.final_stack.append(fvalid[np.where(finals_true)])
-            decaying_particles = fvalid[np.where(finals_false)]
+            should_decay = np.isin(fvalid.pid, self.decaying_pdgs)
+            should_not_decay = np.logical_not(should_decay)
+                    
+            self.final_stack.append(fvalid[np.where(should_not_decay)])
+            decaying_particles = fvalid[np.where(should_decay)]
             decaying_particles.filter_code[:] = FilterCode.XD_DECAY_OFF.value
             self.decay_stack.append(decaying_particles)
             
            
          
-    def filter_particles(self):
-        decay_pdgs = np.array([111], dtype = np.int32)
-        # decay_pdgs = np.array([111, -211, 211, 
-        # -3212, 3212, -3222, 3222, -3112, 3112, -3322, 3322, -3312,  3312], dtype = np.int32)
-        
+    def filter_particles(self):        
         cstack = self.children_stack.valid()
         
-        decaying_true = np.isin(cstack.pid, decay_pdgs)
-        self.decay_stack.append(cstack[np.where(decaying_true)[0]])
+        below_threshold = cstack.energy < self.threshold_energy
+        above_threshold = np.logical_not(below_threshold)
         
-        finals_true = np.logical_or(np.isin(cstack.pid, self.pdg_lists.mceq_finals), 
-                                    np.logical_and(cstack.energy < self.threshold_energy,
-                                                   np.logical_not(np.isin(cstack.pid, decay_pdgs))))
-        self.final_stack.append(cstack[np.where(finals_true)[0]])
+        should_decay = np.isin(cstack.pid, self.decaying_pdgs)
+        should_not_decay = np.logical_not(should_decay)
         
-        working_true = np.logical_not(np.logical_or(decaying_true, finals_true))
+        
+        to_decay_stack = np.logical_and(below_threshold, should_decay)
+        to_final_stack = np.logical_and(below_threshold, should_not_decay)
+        self.decay_stack.append(cstack[np.where(to_decay_stack)[0]])
+        self.final_stack.append(cstack[np.where(to_final_stack)[0]])
+        
         self.working_stack.clear()
-        self.working_stack.append(cstack[np.where(working_true)[0]])
+        self.working_stack.append(cstack[np.where(above_threshold)[0]])
         
         
     

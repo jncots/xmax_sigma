@@ -53,7 +53,7 @@ class CascadeAnalysis:
         self.pid_data = self.final_particles.pid
         self.energy_data = self.final_particles.energy
         self.xdepth_data = self.final_particles.xdepth
-
+        self.height_data = self.cascade_driver.xdepth_getter.xdepth_on_table.convert_x2h(self.final_particles.xdepth)
         # for particle in self.particles:
         #     self.pid_data.append(particle.pid)
         #     self.energy_data.append(particle.energy)
@@ -187,8 +187,7 @@ class CascadeAnalysis:
                          xrange = None,
                          energy_range = None):
         
-        if not self._is_height:
-            self.calc_height()
+        
         
         height_data = []
         

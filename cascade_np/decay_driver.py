@@ -2,15 +2,15 @@ import chromo
 import numpy as np
 from pathlib import Path
 from particle_array import ParticleArray, FilterCode
+from pdg_pid_map import PdgLists
 
 chormo_path = Path(chromo.__file__).parent
 
 
 class DecayDriver:
-    def __init__(self, xdepth_getter, decaying_pdgs = None, stable_pdgs = None):
+    def __init__(self, xdepth_getter, decaying_pdgs = None):
         self._xdepth_getter = xdepth_getter
         self._decaying_pdgs = decaying_pdgs
-        self._stable_pdgs = stable_pdgs
         self._init_pythia()
         
     def _init_pythia(self):
@@ -27,18 +27,20 @@ class DecayDriver:
         self._pythia.readString("Print:quiet = on")
         self._pythia.readString("ProcessLevel:all = off")
         self._pythia.readString("ParticleDecays:tau0Max = 1e100")
-        self._pythia.init()
+        self._pythia.init()          
+        self.set_decaying_pdgs()
+    
+    def set_decaying_pdgs(self, decaying_pdgs=None):
         
-        if self._stable_pdgs is not None:
-            print(f"Stable pdgs = {self._stable_pdgs}")
-            for pdg in self._stable_pdgs:
-                self._pythia.particleData.mayDecay(pdg, False)
-                
+        if decaying_pdgs is not None:
+            self._decaying_pdgs = decaying_pdgs
+            
+        # Decay particles in decaying_pdg list   
         if self._decaying_pdgs is not None:
-            print(f"Decaying pdgs = {self._decaying_pdgs}")
+            # print(f"Decaying pdgs = {self._decaying_pdgs}")
             for pdg in self._decaying_pdgs:
                 self._pythia.particleData.mayDecay(pdg, True)
-    
+        
     
     def _set_xdepth_decay(self, pstack):
         """Fill xdepth_decay array if filter_code == FilterCode.XD_DECAY_OFF.value

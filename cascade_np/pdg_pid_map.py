@@ -1,4 +1,6 @@
 import numpy as np
+from particle import Particle
+
 
 
 class PdgPidMap:
@@ -48,6 +50,20 @@ class PdgPidMap:
         
 class PdgLists:
     def __init__(self):
+        
+        all_particles_dict = {p.pdgid: p for p in Particle.findall()}
+        pdgs_6000 = [] 
+        for p in all_particles_dict:
+            pdg = int(p)
+            if 10 < abs(pdg) < 6000:
+                pdgs_6000.append(pdg)
+                
+        
+        self.pdgs_below_abs6000 = np.array(pdgs_6000, dtype = np.int32)
+        
+        
+        
+        
         self.sibyll_valid_pdgs = ([113, 130, 211, 310, 321, 411, 421, 431,
                         2112, 2212, 3112, 3122, 3212, 3222,
                         3312, 3322, 4122, 4132, 4232, 4332])
@@ -73,11 +89,17 @@ class PdgLists:
         
         
         
-        self.mceq_particles = np.array([-11, 11, 12, -13, 13, -14, 14, 16, 22,
+        self.mceq_particles = np.array([-11, 11, -12, 12, -13, 13, -14, 14, 16, 22,
                                         111, 130, -211, 211, 310,
                                        -321, 321, -2112, 2112, 
                                        -2212, 2212, -3122, 3122,
                                        ], dtype = np.int32)
+        
+        
+        
+        
+        self.not_mceq_below_abs6000 = (self.pdgs_below_abs6000[np.where(np.logical_not(
+            np.isin(self.pdgs_below_abs6000, self.mceq_particles)))[0]])      
         
         self.pid_pdg_mceq = ({111: 0, 130: 1, -211: 2, 211: 3, 
                     310: 4, -321: 5, 321: 6, -411: 7, 
