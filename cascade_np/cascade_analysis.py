@@ -8,6 +8,7 @@ from pympler import asizeof
 import particle
 from pdg_pid_map import PdgLists
 
+
 from copy import copy
 
 
@@ -16,6 +17,10 @@ class CascadeAnalysis:
         
         self.all_pdgs = {
             int(p.pdgid): f"${p.latex_name}$" for p in particle.Particle.findall()
+        }
+        
+        self.all_pdgs_mass = {
+            int(p.pdgid): p.mass*1e-3 if p.mass is not None else 0e0 for p in particle.Particle.findall()
         }
                 
         self.cascade_driver = cascade_driver        
@@ -53,12 +58,22 @@ class CascadeAnalysis:
         print(f"  Initial energy = {init_energy:.5e} GeV")
         print(f"  Energy in final particles = {etot:.5e} GeV")
         print(f"  Relative loss(+)/gain(-) {conservation:.3e}")
+    
+    
+    # def particle_flight(self):
         
+    #     print(f"xdepth_decay"
+    #         np.where(self.final_particles.xdepth_decay > 
+    #                  self.cascade_driver.xdepth_getter.max_xdepth)[0])
+        
+        
+            
     
     def pack_data(self):
         self.pid_data = self.final_particles.pid
         self.energy_data = self.final_particles.energy
         self.xdepth_data = self.final_particles.xdepth
+        self.xdepth_stop = self.final_particles.xdepth_stop
         self.height_data = self.cascade_driver.xdepth_getter.xdepth_on_table.convert_x2h(self.final_particles.xdepth)
         self.height_data = self.height_data * 1e-5
         
@@ -205,6 +220,59 @@ class CascadeAnalysis:
             
         plt.legend()
         
+    def plot_energy_kin_dist(self, pids=None, all_pids = None, nbins = 100, xrange = None, 
+                             per_run = False):
+        
+        energy_data = []
+
+        if pids:
+            for pid in pids:
+                energy_data_pid = []
+                for i, ppid in enumerate(self.pid_data):
+                    if ppid in pid:
+                        energy_data_pid.append(self.energy_data[i] - self.all_pdgs_mass[ppid])
+                energy_data.append(energy_data_pid)        
+            
+        if xrange:
+            xrange = (np.log10(xrange[0]), np.log10(xrange[1]))
+                    
+
+        plt.title(r"Kinetic Energy distribution, $\frac{dN}{dE_{kin}}E_{kin}$")
+        plt.xlabel("Energy, GeV") 
+        plt.semilogx()
+        
+        if per_run:
+            runs_number = self.cascade_driver.runs_number
+        else:
+            runs_number = 1 
+            
+        for i, pid in enumerate(pids):
+            gr, cnt = np.histogram(np.log10(energy_data[i]), bins = nbins, range = xrange)
+            dbin = 10 **cnt[1:] - 10 **cnt[0:-1]
+            cbin = (cnt[1:] + cnt[0:-1])/2
+            gr = ((gr/dbin)/runs_number)*10**cbin
+            
+            ss = ""
+            for pp in pid:
+                ss += f"+{self.all_pdgs[pp]}"
+            
+            plt.semilogx()
+            plt.plot(10 ** cbin, gr, label = ss[1:])
+            # plt.step(10 ** cbin, gr, where='mid', label = ss[1:])
+            
+        if all_pids:
+            gr, cnt = np.histogram(np.log10(self.energy_data), bins = nbins, range = xrange)
+            dbin = 10 **cnt[1:] - 10 **cnt[0:-1]
+            cbin = (cnt[1:] + cnt[0:-1])/2
+            gr = ((gr/dbin)/runs_number)*10**cbin
+            plt.semilogx()
+            plt.step(10 ** cbin, gr,  where='mid', label = f"all")
+                
+            
+        plt.legend()
+        plt.grid()
+        plt.grid(b=True, which='minor', linestyle='--')    
+        
     def plot_height_list(self, pids=None, 
                          all_pids = None, 
                          nbins = 100, 
@@ -314,13 +382,83 @@ class CascadeAnalysis:
                 gr, cnt = np.histogram(xdepth_data[i], bins = nbins, range = xrange)
                 grsum = np.cumsum(gr)
                 plt.step(cnt[:-1], gr/runs_number, label = f"{self.all_pdgs[pid]}")
-                plt.step(cnt[:-1], grsum/runs_number, label = f"cumul_{self.all_pdgs[pid]}")
+                # plt.step(cnt[:-1], grsum/runs_number, label = f"cumul_{self.all_pdgs[pid]}")
             
         if all_pids:
             gr, cnt = np.histogram(xdepth_data_tot, bins = nbins, range = xrange)
             grsum = np.cumsum(gr)
             plt.step(cnt[:-1], gr/runs_number, label = f"all")
-            plt.step(cnt[:-1], grsum/runs_number, label = f"cumul_all")
+            # plt.step(cnt[:-1], grsum/runs_number, label = f"cumul_all")
                 
             
-        plt.legend()                      
+        plt.legend()          
+        
+        
+    def plot_xdepth_stop(self, pids=None, 
+                         all_pids = None, 
+                         nbins = 100, 
+                         xrange = None,
+                         energy_range = None,
+                         per_run = None):
+        
+        
+        
+        if pids is None:
+            pids = self.all_pids
+        
+        print(pids)
+        
+        xdepth_data = []
+        
+        if energy_range:
+            energy_range = (energy_range[0]*1e-9, energy_range[1]*1e-9)
+            
+        
+        xdepth_data_e = []
+        pid_data_e = []
+             
+        if energy_range:
+            for i, hh in enumerate(self.xdepth_stop):
+                if energy_range[0] <= self.energy_data[i] <= energy_range[1]:
+                    xdepth_data_e.append(hh)
+                    pid_data_e.append(self.pid_data[i])
+        else:
+            xdepth_data_e = self.xdepth_stop
+            pid_data_e = self.pid_data
+            
+        if pids:
+            for pid in pids:
+                xdepth_data_pid = []
+                for i, ppid in enumerate(pid_data_e):
+                    if ppid == pid:
+                        xdepth_data_pid.append(xdepth_data_e[i])
+                xdepth_data.append(xdepth_data_pid)
+        
+        
+        xdepth_data_tot = xdepth_data_e                    
+
+        
+        print(f"Min = {np.min(self.xdepth_data):.2f} g/cm2, Max = {np.max(self.xdepth_data):.2f} g/cm2")
+        plt.title("Xdepth stop distribution")
+        plt.xlabel("Xdepth, g/cm2") 
+        
+        if per_run:
+            runs_number = self.cascade_driver.runs_number
+        else:
+            runs_number = 1    
+        
+        if pids:    
+            for i, pid in enumerate(pids):
+                gr, cnt = np.histogram(xdepth_data[i], bins = nbins, range = xrange)
+                grsum = np.cumsum(gr)
+                plt.step(cnt[:-1], gr/runs_number, label = f"{self.all_pdgs[pid]}")
+                # plt.step(cnt[:-1], grsum/runs_number, label = f"cumul_{self.all_pdgs[pid]}")
+            
+        if all_pids:
+            gr, cnt = np.histogram(xdepth_data_tot, bins = nbins, range = xrange)
+            grsum = np.cumsum(gr)
+            plt.step(cnt[:-1], gr/runs_number, label = f"all")
+            # plt.step(cnt[:-1], grsum/runs_number, label = f"cumul_all")
+                
+            
+        plt.legend()                       

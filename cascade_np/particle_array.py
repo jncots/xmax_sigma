@@ -21,6 +21,7 @@ class ParticleArray:
     data_attributes = ["pid",
                        "energy",
                        "xdepth",
+                       "xdepth_stop",
                        "generation_num",
                        "xdepth_decay",
                        "xdepth_inter",
@@ -44,10 +45,11 @@ class ParticleArray:
     def _allocate(self, size):
         self.pid = np.empty(size, dtype=self._int_type)
         self.energy = np.empty(size)
-        self.xdepth = np.empty(size)
+        self.xdepth = np.zeros(size)
+        self.xdepth_stop = np.zeros(size)
         self.generation_num = np.empty(size, dtype=self._int_type)
-        self.xdepth_decay = np.empty(size)
-        self.xdepth_inter = np.empty(size)
+        self.xdepth_decay = np.zeros(size)
+        self.xdepth_inter = np.zeros(size)
         self.production_code = np.empty(size, dtype=self._int_type)
         self.final_code = np.empty(size, dtype=self._int_type)
         self.filter_code = np.empty(size, dtype=self._int_type)

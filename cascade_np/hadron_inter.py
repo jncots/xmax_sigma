@@ -8,7 +8,8 @@ class HadronInteraction:
     def __init__(self):
         self.target = (14, 7)
         ekin = chromo.kinematics.FixedTarget(20000, "proton", self.target)
-        self.event_generator = chromo.models.Sibyll23d(ekin)
+        self.event_generator = chromo.models.Sibyll23c(ekin)
+        # chromo.models.Sibyll23d(ekin)
         # self.event_generator.set_unstable(111)
         # self.event_generator.set_unstable(-211)
         # self.event_generator.set_unstable(211)

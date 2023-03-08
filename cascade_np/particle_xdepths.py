@@ -17,7 +17,10 @@ class NextDecayXdepth:
         self.decay_xdepth = DecayXdepth(tab_particle_properties=tab_particle_properties,
                                         xdepth_on_table=xdepth_on_table)
         self.max_xdepth = xdepth_on_table.xdepth_conversion.get_max_xdepth()
-         
+        self._stop_xdepth = None
+    
+    def set_stop_xdepth(self, stop_xdepth):
+        self._stop_xdepth = stop_xdepth        
          
     def get_xdepth(self, pstack):
         """Set xdepth_decay and filter_code for pstack[0:len(pstack)]
@@ -30,6 +33,11 @@ class NextDecayXdepth:
         
         # If we need inf at the Earth surface
         # pstack.xdepth_decay[np.where(pstack.xdepth_decay[pslice] >= self.max_xdepth)] = np.inf
+        
+        if self._stop_xdepth is not None:
+            pvalid.xdepth_decay[np.where(pvalid.xdepth_decay >= self._stop_xdepth)] = self._stop_xdepth
+            
+        
         pstack.filter_code[:] = FilterCode.XD_DECAY_ON.value
         
 class NextInterXdepth:
@@ -40,6 +48,11 @@ class NextInterXdepth:
         cs_table.add_pdgs(PdgLists().longer_pi0_to_mceq)
         self.inter_xdepth = CrossSectionOnTable(cs_table)
         self.max_xdepth = xdepth_on_table.xdepth_conversion.get_max_xdepth()
+        self._stop_xdepth = None
+        
+    
+    def set_stop_xdepth(self, stop_xdepth):
+        self._stop_xdepth = stop_xdepth    
          
     def get_xdepth(self, pstack):
         """Set xdepth_inter for pstack[0:len(pstack)]
@@ -52,9 +65,14 @@ class NextInterXdepth:
                                         energy = pvalid.energy) + pvalid.xdepth)
         
         # pstack.xdepth_decay[np.where(result_with_infs >= self.max_xdepth)] = np.inf
-                       
-        pvalid.xdepth_inter[:] = np.where(result_with_infs >= self.max_xdepth, 
+        
+        if self._stop_xdepth is not None:             
+            pvalid.xdepth_inter[:] = np.where(result_with_infs >= self._stop_xdepth, 
+                                               self._stop_xdepth, result_with_infs)
+        else:
+            pvalid.xdepth_inter[:] = np.where(result_with_infs >= self.max_xdepth, 
                                                self.max_xdepth, result_with_infs)
+                
         
 
 class DefaultXdepthGetter:
@@ -75,7 +93,11 @@ class DefaultXdepthGetter:
         else:
             raise ValueError("this should not happen")    
                 
-                
+    
+    def set_stop_xdepth(self, stop_xdepth):
+        self.next_decay.set_stop_xdepth(stop_xdepth)
+        self.next_inter.set_stop_xdepth(stop_xdepth)
+                    
     
     def get_decay_xdepth(self, pstack):
         return self.next_decay.get_xdepth(pstack)

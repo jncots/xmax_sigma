@@ -8,9 +8,10 @@ chormo_path = Path(chromo.__file__).parent
 
 
 class DecayDriver:
-    def __init__(self, xdepth_getter, decaying_pdgs = None):
+    def __init__(self, xdepth_getter, decaying_pdgs = None, stable_pdgs=None):
         self._xdepth_getter = xdepth_getter
         self._decaying_pdgs = decaying_pdgs
+        self._stable_pdgs = stable_pdgs
         self._init_pythia()
         
     def _init_pythia(self):
@@ -30,16 +31,24 @@ class DecayDriver:
         self._pythia.init()          
         self.set_decaying_pdgs()
     
-    def set_decaying_pdgs(self, decaying_pdgs=None):
+    def set_decaying_pdgs(self, decaying_pdgs=None, stable_pdgs=None):
         
         if decaying_pdgs is not None:
             self._decaying_pdgs = decaying_pdgs
+            
+        if stable_pdgs is not None:
+            self._stable_pdgs = stable_pdgs    
             
         # Decay particles in decaying_pdg list   
         if self._decaying_pdgs is not None:
             # print(f"Decaying pdgs = {self._decaying_pdgs}")
             for pdg in self._decaying_pdgs:
                 self._pythia.particleData.mayDecay(pdg, True)
+                
+        if self._stable_pdgs is not None:
+            # print(f"Decaying pdgs = {self._decaying_pdgs}")
+            for pdg in self._stable_pdgs:
+                self._pythia.particleData.mayDecay(pdg, False)      
         
     
     def _set_xdepth_decay(self, pstack):
@@ -76,26 +85,43 @@ class DecayDriver:
         
         parent_gen = np.copy(parent_indices)
         # It is assumed that no more than 100 generations in the decay chain
-        for _ in range(100):
-            # Take elements with indicies smaller than the length of 0th generation
-            # and filter out elements which point to "no parent"    
-            generation_slice = np.where((parent_gen < zero_generation_length) & (parent_gen > -1))[0]
-            # generation_slice contains elements for current generation (starting with 1st generation)
-            # parent_indices[generation_slice] are corresponding indicies of parents
-            pstack.xdepth[generation_slice] = pstack.xdepth_decay[parent_indices[generation_slice]]            
-            pstack.generation_num[generation_slice] = pstack.generation_num[parent_indices[generation_slice]] + 1
-            # Set filter code to fill it in "set_xdepth_code()""
-            pstack.filter_code[generation_slice] = FilterCode.XD_DECAY_OFF.value
-            self._set_xdepth_decay(pstack)
-            # parent_gen points to parents of parents ...
-            parent_gen = parent_indices[parent_gen]
-            # break of loop when next generation_slice is empty
-            if not len(generation_slice) > 0:
-                break
+        # for _ in range(100):
+        #     # Take elements with indicies smaller than the length of 0th generation
+        #     # and filter out elements which point to "no parent"    
+        #     generation_slice = np.where((parent_gen < zero_generation_length) & (parent_gen > -1))[0]
+        #     print(f"GEN_SLICE = {generation_slice}")
+        #     # generation_slice contains elements for current generation (starting with 1st generation)
+        #     # parent_indices[generation_slice] are corresponding indicies of parents
+        #     pstack.xdepth[generation_slice] = pstack.xdepth_decay[parent_indices[generation_slice]]            
+        #     pstack.generation_num[generation_slice] = pstack.generation_num[parent_indices[generation_slice]] + 1
+        #     # Set filter code to fill it in "set_xdepth_code()""
+        #     pstack.filter_code[generation_slice] = FilterCode.XD_DECAY_OFF.value
+        #     self._set_xdepth_decay(pstack)
+        #     # parent_gen points to parents of parents ...
+        #     parent_gen = parent_indices[parent_gen]
+        #     # break of loop when next generation_slice is empty
+        #     if not len(generation_slice) > 0:
+        #         break
+        
+        # Take elements with indicies smaller than the length of 0th generation
+        # and filter out elements which point to "no parent"    
+        generation_slice = np.where((parent_gen < zero_generation_length) & (parent_gen > -1))[0]
+        # print(f"GEN_SLICE = {generation_slice}")
+        # generation_slice contains elements for current generation (starting with 1st generation)
+        # parent_indices[generation_slice] are corresponding indicies of parents
+        pstack.xdepth[generation_slice] = pstack.xdepth_decay[parent_indices[generation_slice]]            
+        pstack.generation_num[generation_slice] = pstack.generation_num[parent_indices[generation_slice]] + 1
+        # Set filter code to fill it in "set_xdepth_code()""
+        pstack.filter_code[generation_slice] = FilterCode.XD_DECAY_OFF.value
+        self._set_xdepth_decay(pstack)
+        # parent_gen points to parents of parents ...
+        parent_gen = parent_indices[parent_gen]
+        
+        return generation_slice
 
             
         
-    def run_decay(self, pstack, final_particles, stable_particles):
+    def run_decay(self, pstack, decayed_particles, stable_particles):
         """Run decay of particle in pstack
                 
         FilterCode.XD_DECAY_OFF.value for `filter_code` should be set for particles 
@@ -127,7 +153,7 @@ class DecayDriver:
         # Decay it
         self._pythia.forceHadronLevel()
         
-        number_of_decays = len(np.where(self._pythia.event.status() == 2)[0])
+        # number_of_decays = len(np.where(self._pythia.event.status() == 2)[0])
         # Process event from Pythia
         decay_stack = ParticleArray()
         decay_stack.push(pid = self._pythia.event.pid(),
@@ -142,14 +168,25 @@ class DecayDriver:
         dsv.filter_code[gen0_slice] = pstack.valid().filter_code
         
         # Get parents array and fill in rest generations
-        parents = self._pythia.event.parents()[:,0]        
-        self._fill_xdepth_for_decay_chain(decay_stack, parents, len(pstack))
+        parents = self._pythia.event.parents()[:,0]
+        
+        # print(f"Parents = {self._pythia.event.parents()[:,0]}") 
+        # print(f"Status = {self._pythia.event.status()}")  
+        # print(f"PDG = {self._pythia.event.pid()}")
+        # print(f"Energy = {self._pythia.event.en()}")
+             
+        first_generation_slice = self._fill_xdepth_for_decay_chain(decay_stack, parents, len(pstack))
         # Filter final particles
         fin_status = self._pythia.event.status() == 1
         decayed_slice = fin_status[gen0_slice]
-        final_slice = fin_status[len(pstack):]
+        # final_slice = fin_status[len(pstack):]
+        dec_status = self._pythia.event.status() == 2
+        number_of_decays = len(np.where(dec_status[gen0_slice])[0])
         
-        final_particles.append(decay_stack[len(pstack):][np.where(final_slice)])
+        # decayed_particles = decay_stack[first_generation_slice]
+        # stable_particles = decay_stack[np.where(decayed_slice)]
+        
+        decayed_particles.append(decay_stack[first_generation_slice])
         stable_particles.append(decay_stack[np.where(decayed_slice)])
         
         return number_of_decays
@@ -158,18 +195,20 @@ class DecayDriver:
 if __name__ == "__main__":
     
     # Example:
-    from particle_xdepths import default_xdepth_getter
+    from particle_xdepths import DefaultXdepthGetter
     from particle_array import ParticleArray, FilterCode
     import numpy as np
     
     # Set array of particles to decay
     pstack = ParticleArray(10)    
-    pstack.push(pid = [3312, 5232, 3312, 5232, 2212], energy = [1e3, 1e3, 1e2, 6e2, 6e4], 
-                xdepth = [1e1, 1e1, 1e1, 1e1, 1e1])
+    # pstack.push(pid = [3312, 5232, 3312, 5232, 2212], energy = [1e3, 1e3, 1e2, 6e2, 6e4], 
+    #             xdepth = [1e1, 1e1, 1e1, 1e1, 1e1])
+    pstack.push(pid = [3312, 5232, 2212], energy = [1e3, 1e3, 1e3], 
+                xdepth = [1e1, 1e1, 1e1])
     pstack.valid().filter_code[:] = FilterCode.XD_DECAY_OFF.value
     pstack.valid().generation_num[:] = np.int32(0)
     
-    decay_driver = DecayDriver(default_xdepth_getter, 
+    decay_driver = DecayDriver(DefaultXdepthGetter(mode="decay"), 
                             decaying_pdgs=[111], 
                             stable_pdgs=[-211, 211, -13, 13],
                             # decaying_pdgs=[111, -211, 211, -13, 13],
