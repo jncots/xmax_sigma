@@ -35,7 +35,9 @@ class XdepthOnTable:
             length_vec (np.array): delta length
         """
         length = np.interp(xdepth_vec, self.rev_xdepth, self.rev_length) - length_vec
-        # print(length)
+        # print(f"length_start = {np.interp(xdepth_vec, self.rev_xdepth, self.rev_length)/1e5} km")
+        # print(f"length_minus = {length_vec/1e5} km")
+        # print(f"final_length = {length/1e5} km")
         return np.interp(length, self.length, self.xdepth)
 
 

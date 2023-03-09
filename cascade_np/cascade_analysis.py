@@ -223,6 +223,7 @@ class CascadeAnalysis:
     def plot_energy_kin_dist(self, pids=None, all_pids = None, nbins = 100, xrange = None, 
                              per_run = False):
         
+        print(f"Muon mass = {self.all_pdgs_mass[-13]}, {self.all_pdgs_mass[13]}")
         energy_data = []
 
         if pids:
@@ -250,7 +251,7 @@ class CascadeAnalysis:
             gr, cnt = np.histogram(np.log10(energy_data[i]), bins = nbins, range = xrange)
             dbin = 10 **cnt[1:] - 10 **cnt[0:-1]
             cbin = (cnt[1:] + cnt[0:-1])/2
-            gr = ((gr/dbin)/runs_number)*10**cbin
+            gr = ((gr/dbin)/runs_number)*(10**cbin)
             
             ss = ""
             for pp in pid:
@@ -264,7 +265,7 @@ class CascadeAnalysis:
             gr, cnt = np.histogram(np.log10(self.energy_data), bins = nbins, range = xrange)
             dbin = 10 **cnt[1:] - 10 **cnt[0:-1]
             cbin = (cnt[1:] + cnt[0:-1])/2
-            gr = ((gr/dbin)/runs_number)*10**cbin
+            gr = ((gr/dbin)/runs_number)*(10**cbin)
             plt.semilogx()
             plt.step(10 ** cbin, gr,  where='mid', label = f"all")
                 

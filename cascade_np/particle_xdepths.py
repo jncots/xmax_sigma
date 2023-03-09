@@ -115,30 +115,39 @@ if __name__ == "__main__":
     import numpy as np
     
     
-    atmosphere = CorsikaAtmosphere("SouthPole", "December")
-    xdepth_conversion =  XdepthConversion(atmosphere = atmosphere)
-    xdepth_conversion.set_theta(30)
-    xdepth_on_table = XdepthOnTable(xdepth_conversion = xdepth_conversion, npoints=1000)
+    # atmosphere = CorsikaAtmosphere("SouthPole", "December")
+    # xdepth_conversion =  XdepthConversion(atmosphere = atmosphere)
+    # xdepth_conversion.set_theta(30)
+    # xdepth_on_table = XdepthOnTable(xdepth_conversion = xdepth_conversion, npoints=1000)
     
-    next_decay = NextDecayXdepth(xdepth_on_table=xdepth_on_table)
-    next_inter = NextInterXdepth(xdepth_on_table=xdepth_on_table)
+    # next_decay = NextDecayXdepth(xdepth_on_table=xdepth_on_table)
+    # next_inter = NextInterXdepth(xdepth_on_table=xdepth_on_table)
+    
+    xdepth_getter = DefaultXdepthGetter()
+    xdepth_getter.set_stop_xdepth(500)
     
     pstack = ParticleArray(size=100)
+    # pstack.push(
+    #     pid=np.array([111, 22, 111, 13, -13, 2212]),
+    #     energy=np.array([2e10, 2e0, 2e10, 1e0, 1e0, 1e0]),
+    #     xdepth=np.array([100, 56, 100, 98, 56, 500]),
+    # )
+    
     pstack.push(
-        pid=np.array([111, 22, 111, 13, -13, 2212]),
-        energy=np.array([2e10, 2e0, 2e10, 1e0, 1e0, 1e0]),
-        xdepth=np.array([100, 56, 100, 98, 56, 500]),
+        pid=np.array([-211, 211, -211, 211]),
+        energy=np.array([1e0, 1e0, 1e3, 1e3]),
+        xdepth=np.array([1e1, 1e1, 1e1, 1e1]),
     )
     
     print(pstack.xdepth_decay[0:len(pstack)])
     print(pstack.xdepth_inter[0:len(pstack)])
     
-    next_decay.get_xdepth(pstack)
-    next_inter.get_xdepth(pstack)
+    xdepth_getter.get_decay_xdepth(pstack)
+    xdepth_getter.get_inter_xdepth(pstack)
     
     print("After")
-    print(pstack.valid().xdepth_decay)
-    print(pstack.valid().xdepth_inter)
+    print("Decay", pstack.valid().xdepth_decay)
+    print("Inter", pstack.valid().xdepth_inter)
     
     
          

@@ -6,9 +6,11 @@ import logging
 
 class HadronInteraction:
     def __init__(self):
-        self.target = (14, 7)
+        self.target = chromo.kinematics.CompositeTarget([("N", 0.78), ("O", 0.22)])
+        # self.target = (14, 7)
         ekin = chromo.kinematics.FixedTarget(20000, "proton", self.target)
-        self.event_generator = chromo.models.Sibyll23c(ekin)
+        self.event_generator = chromo.models.DpmjetIII191(ekin)
+        self.event_generator._ecm_min = 2 # GeV
         # chromo.models.Sibyll23d(ekin)
         # self.event_generator.set_unstable(111)
         # self.event_generator.set_unstable(-211)
@@ -26,6 +28,10 @@ class HadronInteraction:
                 self.event_generator.kinematics = chromo.kinematics.FixedTarget(
                     pvalid.energy[i], int(pvalid.pid[i]), self.target
                 )
+                
+                if (self.event_generator.kinematics.elab <= 5e0):
+                    raise RuntimeError("Too low energy")
+                
             except Exception as e:
                 if "projectile" in str(e):
                     # projectile is not allowed
@@ -37,10 +43,31 @@ class HadronInteraction:
                     pvalid.production_code[i] = 333
                 
                 continue    
-                    
+            
+            
             event = next(self.event_generator(1)).final_state()
+            # try:        
+            #     event = next(self.event_generator(1)).final_state()
+            # except RuntimeError as er:
+            #     pvalid.production_code[i] = 333
+            #     continue
+                # print(er)
+                # print(f"pdg_proj = {self.event_generator.kinematics.p1}" 
+                #       f" and energy = {self.event_generator.kinematics.elab}")
+                # print(self.event_generator.kinematics)   
+                
             number_of_interactions += 1
             generation_num = pvalid.generation_num[i] + 1
+            
+            # if len(np.where(event.pid == 8)[0]) > 0:
+            #     print(f"event.pid = {event.pid}")
+            #     print(f"event.status = {event.status}")
+            #     print(f"pdg_proj = {self.event_generator.kinematics.p1}" 
+            #           f" and energy = {self.event_generator.kinematics.elab}")
+            #     print(self.event_generator.kinematics) 
+            #     self.event_generator._lib.dt_evtout(6)
+            #     print("Here STOP")
+            
             children.push(pid = event.pid, 
                             energy = event.en, 
                             xdepth = pvalid.xdepth_inter[i],
@@ -80,10 +107,10 @@ if __name__ == "__main__":
     print("valid_code = ", ch.valid_code)
     print(len(ch))
     
-    print("pid = ", fp.pid)
-    print("energy = ", fp.energy)
-    print("xdepth = ", fp.xdepth)
-    print("generation = ", fp.generation_num)
-    print("valid_code = ", fp.production_code)
+    print("failed pid = ", fp.pid)
+    print("failed energy = ", fp.energy)
+    print("failed xdepth = ", fp.xdepth)
+    print("failed generation = ", fp.generation_num)
+    print("failed valid_code = ", fp.production_code)
     print(len(fp))
     

@@ -19,6 +19,10 @@ class DecayXdepth:
         bgamma = np.sqrt((gamma + 1) * (gamma - 1))
         rnd = -np.log(1 - np.random.rand(len(pdg)))
         length = rnd * bgamma * self.pp_tab.ctau(pdg)
+        
+        # print(f"length = {length/1e5} km")
+        # print(f"length_avg = {bgamma * self.pp_tab.ctau(pdg)/1e5} km")
+        # length = bgamma * self.pp_tab.ctau(pdg)
         return self.xd_tab.add_len2x(xdepth, length)
 
 

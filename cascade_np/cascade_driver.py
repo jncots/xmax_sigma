@@ -9,7 +9,8 @@ import time
 
 
 class CascadeDriver:
-    def __init__(self, xdepth_getter = DefaultXdepthGetter(), 
+    def __init__(self, hadron_interactions,
+                 xdepth_getter = DefaultXdepthGetter(),
                  threshold_energy = 1e3,
                  mceq_decaying_pdgs = [111],
                  height = 0):
@@ -21,7 +22,7 @@ class CascadeDriver:
         # xdepth_on_table.convert_h2x([15e5])[0]
         print(f"stop depth = {self.stop_xdepth}")
         self.xdepth_getter.set_stop_xdepth(self.stop_xdepth)
-        self.hadron_interaction = HadronInteraction()
+        self.hadron_interaction = hadron_interactions
         self.decay_driver = DecayDriver(self.xdepth_getter)
         # Should be called after setting self.decay_driver
         self.set_decaying_pdgs(mceq_decaying_pdgs)
@@ -36,6 +37,7 @@ class CascadeDriver:
         self.spare_stack = ParticleArray()
     
     
+        
     def set_decaying_pdgs(self, mceq_decaying_pdgs):
         pdg_lists = PdgLists()
         
@@ -261,11 +263,11 @@ class CascadeDriver:
             
             
             fstack_portion = fvalid[np.where(should_not_decay)]
-            fstack_portion.xdepth_stop[:] = self.stop_xdepth        
+            # fstack_portion.xdepth_stop[:] = self.stop_xdepth        
             self.final_stack.append(fstack_portion)
             
             decaying_particles = fvalid[np.where(should_decay)]
-            decaying_particles.filter_code[:] = FilterCode.XD_DECAY_OFF.value
+            # decaying_particles.filter_code[:] = FilterCode.XD_DECAY_OFF.value
             self.decay_stack.append(decaying_particles)
             
            

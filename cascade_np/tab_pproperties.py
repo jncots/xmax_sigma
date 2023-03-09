@@ -27,11 +27,18 @@ class ParticlePropertiesParticle:
     
     def get_mass(self, pdg):
         """Returns mass in GeV"""
-        if self.all_particles_dict[pdg].mass is None:
-            return np.float64(0)
-        else:
-            # 1e-3 is conversion factor from MeV to GeV
-            return np.float64(self.all_particles_dict[pdg].mass) * 1e-3    
+        
+        try:
+            if self.all_particles_dict[pdg].mass is None:
+                return np.float64(0)
+            else:
+                # 1e-3 is conversion factor from MeV to GeV
+                return np.float64(self.all_particles_dict[pdg].mass) * 1e-3
+        except KeyError as ex:
+            print(ex)
+            # raise
+    
+                    
 
     def get_pmap(self):
         return self.pmap
@@ -67,6 +74,7 @@ class TabulatedParticleProperties:
             mass_array = self._mass_tab[self.pmap.get_pids(pdg_array)]
         except IndexError:
             # It is assumed to be a rare case
+            print(f"Pdg_array = {pdg_array}")
             mass_array = np.frompyfunc(self.get_mass, 1, 1)(pdg_array).astype(
                 "float64"
             )

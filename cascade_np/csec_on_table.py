@@ -55,7 +55,8 @@ class CrossSectionOnTable:
         """
         mean_xdepth = self.get_mean_xdepth(pdg, energy)
         rnd = -np.log(1 - np.random.rand(len(pdg)))
-        return mean_xdepth * rnd    
+        return mean_xdepth * rnd
+        # return mean_xdepth    
                  
 
  
