@@ -28,7 +28,8 @@ class ParticleArray:
                        "production_code",
                        "final_code",
                        "filter_code",
-                       "valid_code"]
+                       "valid_code",
+                       "id"]
 
     def __init__(self, size=1000):
 
@@ -54,6 +55,7 @@ class ParticleArray:
         self.final_code = np.empty(size, dtype=self._int_type)
         self.filter_code = np.empty(size, dtype=self._int_type)
         self.valid_code = np.zeros(size, dtype=self._int_type)
+        self.id = np.zeros(size, dtype=np.int64)
         self.data = self
         self._len = 0
 
@@ -94,6 +96,10 @@ class ParticleArray:
         return view_stack
         
     def __setitem__(self, slice_, other):
+        """Set arbitrary slice `slice_` of current object `self` with
+        values from `other`. Be careful, as it doesn't check whether the
+        assignment happens in valid part of the array
+        """
 
         if not isinstance(other, ParticleArray):
             raise ValueError("Argument is not an object of ParticleArray class")
@@ -102,6 +108,7 @@ class ParticleArray:
             other_value = getattr(other, attr)
             self_value = getattr(self, attr)
             self_value[slice_] = other_value
+        
         
         
 
@@ -204,6 +211,8 @@ class ParticleArray:
         return popped_stack
     
     def append(self, other):
+        """Appends only valid part of other array
+        """
         
         if not isinstance(other, ParticleArray):
             raise ValueError("argument is not a ParticleArray object")
@@ -229,28 +238,60 @@ class ParticleArray:
         return self[0:self._len]  
 
 if __name__ == "__main__":
-    
-    # Initialize stack having size 10 reserved
-    
-    pstack = ParticleArray(10)
+        
+    def test_initialization():
+        # Initialize stack having size 10 reserved
+        
+        pstack = ParticleArray(10)
 
-    # Push single values (pid is required)
-    print(f"Add single element {pstack.push(pid = 2212)}")
-    print(f"Add single element with energy {pstack.push(pid = 2212, energy = 789, xdepth = 0)}")
-    # Push arrays
-    print("Push array with 3 elements "
-          f"{pstack.push(pid = np.array([888, 342, 777]), energy = np.array([20, 20, 20]))}")
+        # Push single values (pid is required)
+        print(f"Add single element {pstack.push(pid = 2212)}")
+        print(f"Add single element with energy {pstack.push(pid = 2212, energy = 789, xdepth = 0)}")
+        # Push arrays
+        print("Push array with 3 elements "
+            f"{pstack.push(pid = np.array([888, 342, 777]), energy = np.array([20, 20, 20]))}")
 
 
-    print(pstack.valid().energy)
+        print(pstack.valid().energy)
+        
+        pstack1 = ParticleArray(10)
+        pstack1.push(pid = np.array([888, 342, 777]), energy = 20, xdepth = 13)
+        # pstack1.append(pstack).append(pstack)
+        print(pstack1.valid().pid)
+        print(pstack1.valid().energy)
+        print(pstack1.valid().xdepth)
+        print(pstack1.valid().valid_code)
+        
     
-    pstack1 = ParticleArray(5)
-    pstack1.push(pid = np.array([888, 342, 777]), energy = 20, xdepth = 13)
-    # pstack1.append(pstack).append(pstack)
-    print(pstack1.valid().pid)
-    print(pstack1.valid().energy)
-    print(pstack1.valid().xdepth)
-    print(pstack1.valid().valid_code)
+    
+    def test_setitem_function():
+        """Test __setitem__ function of ParticleArray
+        """
+        
+        pstack1 = ParticleArray(10)
+        pstack1.push(pid = np.array([888, 342, 777]), energy = 20, xdepth = 13)
+        
+        some_slice = [0, 2]
+        pstack2 = pstack1[some_slice]
+        print(f"pstack2.pid = {pstack2.pid}")
+        
+        
+        pstack2.pid[0] = 3333
+        pstack2.pid[1] = 5555
+        pstack2.energy[1] = 77
+        pstack2.push(pid = 999, energy = 888, xdepth = 0)
+        print(f"pstack1.pid = {pstack1.pid}")
+        print(f"pstack1.energy = {pstack1.energy}")
+        print(f"pstack2.pid = {pstack2.pid}")
+        print(f"pstack2.energy = {pstack2.energy}")
+        print(f"pstack2.valid().pid = {pstack2.valid().pid}")
+        print(f"len(pstack2) = {len(pstack2)}")
+        pstack1[some_slice + [6]] = pstack2.valid()
+        print(f"pstack1.pid = {pstack1.pid}")
+        print(f"pstack1.energy = {pstack1.energy}")
+        
+    test_setitem_function()     
+    
     # print(pstack1.pid)
     # print(len(pstack1))
     # print(pstack1.reserved_size())

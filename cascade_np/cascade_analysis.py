@@ -27,6 +27,18 @@ class CascadeAnalysis:
         self.final_particles = cascade_driver.get_final_particles().valid()
         self.pack_data()
 
+
+    def check_ids(self):        
+        values, counts = np.unique(self.final_particles.id, return_counts=True)
+        
+        not_unique = np.where(counts > 1)[0]
+        if len(not_unique) > 0:
+            print(f"Final ids = {values[not_unique]} have counts\n"
+                  f" {counts[not_unique]}")
+        else:
+            print(f"All final ids are unique, min = {np.min(self.final_particles.id)},"
+                  f" max = {np.max(self.final_particles.id)}")    
+
     def print_stats(self):
         if self.cascade_driver.runs_number > 1:
             print(f"Number of runs = {self.cascade_driver.runs_number}")
@@ -36,6 +48,7 @@ class CascadeAnalysis:
               f" with energy = {self.cascade_driver.initial_energy:.3e}")                
         
         print(f"\nFinal state:")
+        print(f"  Number of all particles in cascade = {self.cascade_driver.id_generator.generated_so_far()}")
         print(f"  Number of final particles = {len(self.cascade_driver.final_stack)}")
         print(f"  Number of interactions = {self.cascade_driver.number_of_interactions}")
         print(f"  Number of decays = {self.cascade_driver.number_of_decays}")
@@ -47,6 +60,7 @@ class CascadeAnalysis:
             print(f"  Exectution time per run = {exec_time:.2f} s")
         print(f"  Size of cascade_driver object = {asizeof.asizeof(self.cascade_driver)/(1024**2):.2f} Mb")
         self.energy_conservation()
+        self.check_ids()
     
     
     def energy_conservation(self):     
@@ -108,7 +122,7 @@ class CascadeAnalysis:
         self.hist_dict = hist_dict   
             
         
-    def plot_pid(self, from_=None, to_=None):
+    def plot_ptypes_dist(self, from_=None, to_=None):
 
         pid_dist = dict()
 
@@ -130,6 +144,46 @@ class CascadeAnalysis:
         pnum = list(pid_dist.values())
         plt.bar(ptypes[from_:to_], pnum[from_:to_])
         plt.title("Particle type distribution")
+        
+        
+    def plot_ptypes_energy_dist(self, from_=None, to_=None):
+
+        pid_dist = dict()
+        en_dist = dict()
+
+        for i, pid in enumerate(self.final_particles.pid):
+            pid_dist[pid] = pid_dist.get(pid, 0) + 1
+            en_dist[pid] = en_dist.get(pid, 0) + self.final_particles.energy[i]
+            
+        # print(np.sum(self.final_particles.energy))    
+
+        pid_dist = dict(
+            sorted(pid_dist.items(), key=lambda item: item[1], reverse=True)
+        )
+        # print(pid_dist)
+        
+        mceq_particles = PdgLists().mceq_particles
+        for pdg in pid_dist.keys():
+            if pdg not in mceq_particles:
+                print(f"pdg = {pdg} is not among mceq_particles")
+                
+        
+        ptypes = [self.all_pdgs[i] for i in pid_dist.keys()]
+        # pnum = list(pid_dist.values())
+        penergy = [en_dist[i] for i in pid_dist.keys()]
+        penergy = np.array(penergy)/(self.cascade_driver.initial_energy * self.cascade_driver.runs_number)
+        pen_dict = {pdg : penergy[i] for i, pdg in enumerate(pid_dist.keys())}
+        
+        
+        plt.bar(ptypes[from_:to_], penergy[from_:to_])
+        
+        tot = 0
+        for pdg, en_val in pen_dict.items():
+            print(f"{pdg:>10} : {en_val:0.5f}")
+            tot += en_val
+        print(f"Total energy = {tot}")  
+            
+        plt.title("Energy distribution among particles")    
 
     def plot_energy(self, pid=None):
         

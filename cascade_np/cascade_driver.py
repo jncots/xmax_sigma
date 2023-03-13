@@ -6,35 +6,25 @@ from hadron_inter import HadronInteraction
 from decay_driver import DecayDriver
 import numpy as np
 import time
+from id_generator import IdGenerator
 
 
 class CascadeDriver:
-    def __init__(self, hadron_interactions,
-                 xdepth_getter = DefaultXdepthGetter(),
-                 threshold_energy = 1e3,
-                 mceq_decaying_pdgs = [111],
-                 height = 0):
+    def __init__(self, zenith_angle):
         
-        self.threshold_energy = threshold_energy
-        self.xdepth_getter = xdepth_getter
-        
-        self.stop_xdepth = self.xdepth_getter.xdepth_conversion.convert_h2x(height * 1e5)
-        # xdepth_on_table.convert_h2x([15e5])[0]
-        print(f"stop depth = {self.stop_xdepth}")
-        self.xdepth_getter.set_stop_xdepth(self.stop_xdepth)
-        self.hadron_interaction = hadron_interactions
+        self.id_generator = IdGenerator()
+        self.xdepth_getter = DefaultXdepthGetter(zenith_angle)
+        self.hadron_interaction = HadronInteraction()
         self.decay_driver = DecayDriver(self.xdepth_getter)
-        # Should be called after setting self.decay_driver
-        self.set_decaying_pdgs(mceq_decaying_pdgs)
         
+        self.final_stack = ParticleArray()
+        self.archival_stack = ParticleArray()
         
         self.working_stack = ParticleArray()
-        self.final_stack = ParticleArray()
         self.decay_stack = ParticleArray()
         self.inter_stack = ParticleArray()
-        self.failed_stack = ParticleArray()
+        self.rejection_stack = ParticleArray()
         self.children_stack = ParticleArray()
-        self.spare_stack = ParticleArray()
     
     
         
@@ -66,34 +56,42 @@ class CascadeDriver:
                                             stable_pdgs=self.stable_pdgs)
     
     
-    def start_accumulate(self):
-        self.initial_run = True
-        self.accumulate_runs = True   
-            
-    def stop_accumulate(self):
-        self.initial_run = True
-        self.accumulate_runs = False
-                
     
-    def run(self, *, pdg, energy, 
-            xdepth = 0, 
-            mceq_decaying_pdgs = None, 
-            threshold_energy = None):
-        
-        
-        if threshold_energy is not None:
-            self.threshold_energy = threshold_energy
-        self.initial_energy = energy
+    def simulation_parameters(self, *, pdg, energy, 
+                              threshold_energy,
+                              mceq_decaying_pdgs,
+                              xdepth = 0,
+                              stop_height = 0,
+                              accumulate_runs = False,
+                              reset_ids = False):
+            
         self.initial_pdg = pdg
+        self.initial_energy = energy
+        self.threshold_energy = threshold_energy
+        self.initial_xdepth = xdepth
         
-        if mceq_decaying_pdgs is not None:
-            self.set_decaying_pdgs(mceq_decaying_pdgs)
+        self.set_decaying_pdgs(mceq_decaying_pdgs)
         
-        self.number_of_decays = 0
-        self.number_of_interactions = 0
+        self.stop_xdepth = self.xdepth_getter.xdepth_conversion.convert_h2x(stop_height * 1e5)
+        self.xdepth_getter.set_stop_xdepth(self.stop_xdepth)
+        print(f"stop depth = {self.stop_xdepth}")
         
+        if reset_ids:
+            self.id_generator = IdGenerator()
+        
+        self.initial_run = True    
+        self.accumulate_runs = accumulate_runs           
+    
+    def run(self):
+        
+        self.working_stack.clear()
+        self.decay_stack.clear()
+                
         if self.initial_run:
             self.final_stack.clear()
+            self.archival_stack.clear()
+            self.number_of_decays = 0
+            self.number_of_interactions = 0
             self.loop_execution_time = 0
             self.runs_number = 0
             
@@ -101,13 +99,12 @@ class CascadeDriver:
                 self.initial_run = False  
             
         
-        self.decay_stack.clear()
-        self.working_stack.clear()
-        
-        self.working_stack.push(pid = pdg, 
-                         energy = energy, 
-                         xdepth = xdepth,
+        self.working_stack.push(pid = self.initial_pdg, 
+                         energy = self.initial_energy, 
+                         xdepth = self.initial_xdepth,
                          generation_num = 0)
+        
+        self.id_generator.generate_ids(self.working_stack.valid().id)
         
         iloop = 1
         
@@ -118,22 +115,11 @@ class CascadeDriver:
             print(f"{iloop} Number of inter = {self.number_of_interactions}"
                   f" number of decays = {self.number_of_decays}")
             
-            # self.search_for_muons(1)
-            self.search_for_xdepth_stop(1)
-            self.set_xdepths()   
-            
-            # self.search_for_muons(2)
-            self.search_for_xdepth_stop(2)         
-            self.run_interaction()
-            
-            # self.search_for_muons(3)
-            self.search_for_xdepth_stop(3)
+            self.group_particles_by_slant_depth()         
+            self.launch_hadron_interactions()
             self.filter_particles()
-            
-            # self.search_for_muons(4)
-            self.search_for_xdepth_stop(4)
             if len(self.working_stack) == 0:
-                self.decay_particles()
+                self.launch_particle_decay()
             
             iloop += 1
         
@@ -152,7 +138,7 @@ class CascadeDriver:
         self.contains_muons(self.final_stack, f"{number} final_stack")
         self.contains_muons(self.decay_stack, f"{number} decay_stack")
         self.contains_muons(self.inter_stack, f"{number} inter_stack")
-        self.contains_muons(self.failed_stack, f"{number} failed_stack")
+        self.contains_muons(self.rejection_stack, f"{number} rejection_stack")
         self.contains_muons(self.children_stack, f"{number} children_stack")
         
     def final_contains_small_xdepth_stop(self, stack, name):
@@ -166,14 +152,32 @@ class CascadeDriver:
         self.final_contains_small_xdepth_stop(self.final_stack, f"{number} final_stack")
         # self.contains_muons(self.decay_stack, f"{number} decay_stack")
         # self.contains_muons(self.inter_stack, f"{number} inter_stack")
-        # self.contains_muons(self.failed_stack, f"{number} failed_stack")
+        # self.contains_muons(self.rejection_stack, f"{number} rejection_stack")
         # self.contains_muons(self.children_stack, f"{number} children_stack")    
 
+    
+    def search_missing_particles(self, init_stacks, final_stacks):
         
+        init_particles = 0
+        for st in init_stacks:
+            init_particles += len(st)
+        
+        final_particles = 0
+        for st in final_stacks:
+            final_particles += len(st)
+        
+        
+        print(f"TEST: {init_particles - final_particles} MISSING,"
+              f" INIT = {init_particles}, FINAL = {final_particles}")    
+        assert (init_particles == final_particles, 
+                f"{init_particles - final_particles} missing particles!!!")    
+                
+        
+            
             
     
     
-    def set_xdepths(self):
+    def group_particles_by_slant_depth(self):
         """pstack is assumed to contain particles which:
             * has energy > threshold_energy
             * xdepth < surface_xdepth
@@ -212,22 +216,27 @@ class CascadeDriver:
         
         
         # Sort particles at the surface
-        at_surface = np.logical_and(pvalid.xdepth_inter >= max_xdepth, pvalid.xdepth_decay >= max_xdepth)
+        at_surface = np.logical_and(pvalid.xdepth_inter >= max_xdepth, 
+                                    pvalid.xdepth_decay >= max_xdepth)
         not_at_surface = np.logical_not(at_surface)
         
         should_decay = np.isin(pvalid.pid, self.force_decaying_pdgs)
         should_not_decay = np.logical_not(should_decay)
         
-        to_decay_stack = np.logical_and(should_decay, at_surface)
+        to_decay_stack_s = np.logical_and(should_decay, at_surface)
         to_final_stack = np.logical_and(should_not_decay, at_surface)
         
         
-        dstack_portion = pvalid[np.where(to_decay_stack)[0]]
-        dstack_portion.xdepth_stop[:] = self.stop_xdepth
-        self.decay_stack.append(pvalid[np.where(to_decay_stack)[0]])
+        dstack_portion_s = pvalid[np.where(to_decay_stack_s)[0]]
+        dstack_portion_s.xdepth_stop[:] = max_xdepth
+        self.decay_stack.append(dstack_portion_s)
         
         fstack_portion = pvalid[np.where(to_final_stack)[0]]
-        fstack_portion.xdepth_stop[:] = self.stop_xdepth         
+        fstack_portion.xdepth_stop[:] = max_xdepth
+        # Hit surface, final code == 1
+        fstack_portion.valid().final_code[:] = 1
+        
+        # print(f"Muons that hit surface = {len(np.where(fstack_portion)[0])}")        
         self.final_stack.append(fstack_portion)
 
         # Sort particles which are still in the atmosphere
@@ -241,23 +250,53 @@ class CascadeDriver:
         
         dstack_portion = pvalid[np.where(to_decay_stack)[0]]
         dstack_portion.xdepth_stop[:] = dstack_portion.xdepth_decay
+        self.decay_stack.append(dstack_portion)
         
-        self.decay_stack.append(pvalid[np.where(to_decay_stack)[0]])
+        self.search_missing_particles(init_stacks = [pvalid], 
+                                      final_stacks = [fstack_portion, 
+                                                      dstack_portion_s,
+                                                      istack_portion,
+                                                      dstack_portion,])
         
         
         
     
-    def run_interaction(self):
+    def launch_hadron_interactions(self):
+        if len(self.inter_stack) == 0:
+            return
+        
         self.children_stack.clear()
-        self.failed_stack.clear()
+        self.rejection_stack.clear()
         self.number_of_interactions += self.hadron_interaction.run_event_generator(
                                                     parents = self.inter_stack, 
                                                     children = self.children_stack, 
-                                                    failed_parents = self.failed_stack)
+                                                    failed_parents = self.rejection_stack)
         
+        
+        self.id_generator.generate_ids(self.children_stack.valid().id)
+        self.children_stack.valid().production_code[:] = 2
+        
+        # Filter particles participated in interactions
+        parents_true = np.logical_not(np.isin(self.inter_stack.valid().pid, 
+                                              self.rejection_stack.valid().pid))
+        parents = self.inter_stack[np.where(parents_true)[0]]
+        parents.valid().final_code[:] = 2
+        # And record them in archival stack
+        self.archival_stack.append(parents)
+        
+
+        parent_energy = np.sum(self.inter_stack.valid().energy)
+        failed_energy = np.sum(self.rejection_stack.valid().energy)
+        children_energy = np.sum(self.children_stack.valid().energy)
+        secondary_energy = children_energy + failed_energy
+        print(f"Parent energy = {parent_energy}")
+        print(f"Failed energy = {failed_energy}")  
+        print(f"Children = {children_energy}")
+        print(f"Secondary energy = {secondary_energy}") 
+        print(f"Energy conservation = {100*(secondary_energy - parent_energy)/parent_energy} %")
               
-        if len(self.failed_stack) > 0:
-            fvalid = self.failed_stack.valid()
+        if len(self.rejection_stack) > 0:
+            fvalid = self.rejection_stack.valid()
             should_decay = np.isin(fvalid.pid, self.force_decaying_pdgs)
             should_not_decay = np.logical_not(should_decay)
             
@@ -269,7 +308,11 @@ class CascadeDriver:
             decaying_particles = fvalid[np.where(should_decay)]
             # decaying_particles.filter_code[:] = FilterCode.XD_DECAY_OFF.value
             self.decay_stack.append(decaying_particles)
-            
+        
+            self.search_missing_particles(init_stacks = [self.rejection_stack.valid()], 
+                                        final_stacks = [fstack_portion, 
+                                                        decaying_particles,
+                                                        ])   
            
          
     def filter_particles(self):        
@@ -284,28 +327,71 @@ class CascadeDriver:
         
         to_decay_stack = np.logical_and(below_threshold, should_decay)
         to_final_stack = np.logical_and(below_threshold, should_not_decay)
-        self.decay_stack.append(cstack[np.where(to_decay_stack)[0]])
+        
+        decay_portion = cstack[np.where(to_decay_stack)[0]]
+        self.decay_stack.append(decay_portion)
         
         fstack_portion = cstack[np.where(to_final_stack)[0]]
         fstack_portion.xdepth_stop[:] = self.stop_xdepth
         self.final_stack.append(fstack_portion)
         
         self.working_stack.clear()
-        self.working_stack.append(cstack[np.where(above_threshold)[0]])
+        
+        work_portion = cstack[np.where(above_threshold)[0]] 
+        self.working_stack.append(work_portion)
+        
+        self.search_missing_particles(init_stacks = [cstack], 
+                                        final_stacks = [fstack_portion,
+                                                        decay_portion, 
+                                                        work_portion,
+                                                        ])   
         
         
     
-    def decay_particles(self):
+    def launch_particle_decay(self):
         if len(self.decay_stack) == 0:
             return
+        
+        self.rejection_stack.clear()
         self.working_stack.clear()
-        self.spare_stack.clear()
         self.number_of_decays += self.decay_driver.run_decay(self.decay_stack, 
                                                              decayed_particles=self.working_stack,
-                                                             stable_particles=self.spare_stack)
+                                                             stable_particles=self.rejection_stack)
         
-        self.spare_stack.valid().xdepth_stop[:] = self.stop_xdepth
-        self.final_stack.append(self.spare_stack)
+        
+        print(f"Decaying stack = {self.decay_stack.valid().pid}")
+        print(f"Decayed particles = {self.working_stack.valid().pid}")
+        print(f"Stable parts = {self.rejection_stack.valid().pid}")
+        
+        init_energy = np.sum(self.decay_stack.valid().energy)
+        fin_dec_energy = np.sum(self.working_stack.valid().energy)
+        stab_energy = np.sum(self.rejection_stack.valid().energy)
+        
+        print(f"Init = {init_energy}, fin_dec = {fin_dec_energy}, stab = {stab_energy}")
+        print(f"Conservation of energy = {((fin_dec_energy + stab_energy) -  init_energy)/init_energy} %")
+        
+        
+        # Filter particles participated in decay
+        parents_true = np.logical_not(np.isin(self.decay_stack.valid().pid, 
+                                              self.rejection_stack.valid().pid))
+        parents = self.decay_stack[np.where(parents_true)[0]]
+        # Final_code = 3 means decay
+        parents.valid().final_code[:] = 3
+        # And record them in archival stack
+        self.archival_stack.append(parents)
+        
+        self.id_generator.generate_ids(self.working_stack.valid().id)
+        self.rejection_stack.valid().xdepth_stop[:] = self.stop_xdepth
+        self.final_stack.append(self.rejection_stack)
+        
+        
+        # self.search_missing_particles(init_stacks = [self.rejection_stack.valid()], 
+        #                                 final_stacks = [fstack_portion,
+        #                                                 decay_portion, 
+        #                                                 work_portion,
+        #                                                 ]) 
+        
+        
         self.decay_stack.clear()
 
         
@@ -314,8 +400,7 @@ class CascadeDriver:
         return self.decay_stack
     
     def get_final_particles(self):
-        return self.final_stack
-    
+        return self.final_stack        
     
 if __name__ == "__main__":
     cas_driver = CascadeDriver(threshold_energy = 1e3)

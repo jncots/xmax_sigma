@@ -10,6 +10,8 @@ class HadronInteraction:
         # self.target = (14, 7)
         ekin = chromo.kinematics.FixedTarget(20000, "proton", self.target)
         self.event_generator = chromo.models.DpmjetIII191(ekin)
+        # self.event_generator = chromo.models.EposLHC(ekin)
+        # self.event_generator = chromo.models.Sibyll23d(ekin)
         self.event_generator._ecm_min = 2 # GeV
         # chromo.models.Sibyll23d(ekin)
         # self.event_generator.set_unstable(111)
@@ -73,8 +75,13 @@ class HadronInteraction:
                             xdepth = pvalid.xdepth_inter[i],
                             generation_num = generation_num,
                             production_code = 777)
-        
-        
+            
+            print("\n")
+            print(f"event.pid = {event.pid}")
+            print(f"event.pid = {event.en},\nsum = {np.sum(event.en)}, init = {pvalid.energy[i]}")
+            print(f"event.pid = {event.status}")
+            print(self.event_generator.kinematics)
+            print(f"Interaction: energy conservation {100*(np.sum(event.en) - pvalid.energy[i])/pvalid.energy[i]} %\n")
         
         failed_parents.append(pvalid[np.where(pvalid.production_code > 0)])
         
