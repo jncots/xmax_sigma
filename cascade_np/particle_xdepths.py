@@ -77,7 +77,8 @@ class NextInterXdepth:
 
 class DefaultXdepthGetter:
     def __init__(self, theta_deg = 0, mode="both"):
-        self.atmosphere = CorsikaAtmosphere("SouthPole", "December")
+        # self.atmosphere = CorsikaAtmosphere("SouthPole", "December")
+        self.atmosphere = CorsikaAtmosphere("BK_USStd", None)
         self.xdepth_conversion =  XdepthConversion(atmosphere = self.atmosphere)
         self.xdepth_conversion.set_theta(theta_deg)
         self.max_xdepth = self.xdepth_conversion.get_max_xdepth()

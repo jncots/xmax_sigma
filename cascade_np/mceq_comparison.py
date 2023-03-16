@@ -12,11 +12,13 @@ import crflux.models as pm
 class GetMCEQDist():
     def __init__(self):
         
+        config.mceq_db_fname = "mceq_db_lext_dpm191_v150.h5"
         config.enable_muon_energy_loss = False
         config.muon_helicity_dependence = False
+        config.adv_set["disable_decays"] = [-13, 13, -211, 211]
         mceq_run = MCEqRun(
         #provide the string of the interaction model
-        interaction_model='DPMJETIII191',
+        interaction_model='DPMJET-III-19.1',
         #primary cosmic ray flux model
         primary_model = (pm.HillasGaisser2012, "H3a"),
         # Zenith angle in degrees. 0=vertical, 90=horizontal
@@ -58,26 +60,30 @@ class GetMCEQDist():
         # print(X_grid[1]-X_grid[0])
         # print(xbin1, X_grid)
 
-        xd = 587.6807
+        xd = 635.955
+        # xd = 587.6807
+        # xd = 1168
         xgrid_inx = np.digitize([xd], xbin1)
-        print(np.digitize([xd], xbin1))
+        print(xgrid_inx)
         # numpy.digitize(x, bins, right=False)[source]
-        
+        e_width = mceq_run.e_widths
         self.mu_spec =(e_grid, (part_long_spectra["mu+"][1][xgrid_inx[0]]+
                     # part_long_spectra["mu+_l"][1][xgrid_inx[0]]+
                     # part_long_spectra["mu+_r"][1][xgrid_inx[0]]+
                     part_long_spectra["mu-"][1][xgrid_inx[0]]
                     # part_long_spectra["mu-_r"][1][xgrid_inx[0]]+
                     # part_long_spectra["mu-_l"][1][xgrid_inx[0]]
-                    )*e_grid, r"${\mu}^{+} + {\mu}^{-}$ mceq")
+                    )*e_width, r"${\mu}^{+} + {\mu}^{-}$ mceq")
 
         self.numu_spec = (e_grid, (part_long_spectra["numu"][1][xgrid_inx[0]]+
-                    part_long_spectra["antinumu"][1][xgrid_inx[0]])*e_grid, r"$\bar{\nu}_{\mu} + {\nu}_{\mu}$ mceq")
+                    part_long_spectra["antinumu"][1][xgrid_inx[0]])*e_width, r"$\bar{\nu}_{\mu} + {\nu}_{\mu}$ mceq")
         
         
         self.nue_spec = (e_grid, (part_long_spectra["nue"][1][xgrid_inx[0]]+
-                    part_long_spectra["antinue"][1][xgrid_inx[0]])*e_grid, r"$\bar{\nu}_{e} + {\nu}_{e}$ mceq")
+                    part_long_spectra["antinue"][1][xgrid_inx[0]])*e_width, r"$\bar{\nu}_{e} + {\nu}_{e}$ mceq")
 
+        self.ebins = mceq_run.e_bins
+        self.egrid = e_grid
         # plt.semilogx(e_grid, (part_long_spectra["mu+"][1][xgrid_inx[0]]+
         #             part_long_spectra["mu+_l"][1][xgrid_inx[0]]+
         #             part_long_spectra["mu+_r"][1][xgrid_inx[0]]+

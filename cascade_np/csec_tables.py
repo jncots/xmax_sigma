@@ -36,11 +36,16 @@ class CSXdepthConversion:
         # "Global mean water vapour is about 0.25% of the atmosphere by mass"
         # https://en.wikipedia.org/wiki/Water_vapor
         # It gives 0.2% of vapor by volume
-        air_composition = [(14, 2 * 0.78084),
-                           (16, 2 * 0.20946),
-                           (40, 0.00934),
-                           (1, 2 * 0.002),
-                           (16, 0.002)]
+        # air_composition = [(14, 2 * 0.78084),
+        #                    (16, 2 * 0.20946),
+        #                    (40, 0.00934),
+        #                    (1, 2 * 0.002),
+        #                    (16, 0.002)]
+        
+        
+        air_composition = [(14, 0.78),
+                           (16, 0.22)]
+        # air_composition = [(14, 1)]
         
         total_fraction = 0 
         average_mass = 0
@@ -87,9 +92,12 @@ class CrossSectionTableMCEq:
         for p in self.mceq_run.pman.all_particles:
             if p.is_hadron:
                 pdg = p.pdg_id[0]
+                print(f"Tabulate cross-section for {p.name}({pdg})")
+                if pdg is None:
+                    print(f"AGA, pdg is {pdg}")
                 self.sigma_tab[pid, :] = np.interp(self.energy_grid, 
-                                            self.interaction_cs.energy_grid.c + p.mass, 
-                                            self.interaction_cs.get_cs(p.pdg_id[0], True))
+                                            self.mceq_run._int_cs.energy_grid.c + p.mass, 
+                                            self.mceq_run._int_cs.get_cs(pdg, True))
                 
                 self.pid_pdg[pdg] = pid
                 pid += 1

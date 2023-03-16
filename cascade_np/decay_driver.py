@@ -111,6 +111,7 @@ class DecayDriver:
         # parent_indices[generation_slice] are corresponding indicies of parents
         pstack.xdepth[generation_slice] = pstack.xdepth_decay[parent_indices[generation_slice]]            
         pstack.generation_num[generation_slice] = pstack.generation_num[parent_indices[generation_slice]] + 1
+        pstack.parent_id[generation_slice] = pstack.id[parent_indices[generation_slice]]
         # Set filter code to fill it in "set_xdepth_code()""
         pstack.filter_code[generation_slice] = FilterCode.XD_DECAY_OFF.value
         self._set_xdepth_decay(pstack)
@@ -162,6 +163,8 @@ class DecayDriver:
         # Set 0th generation
         gen0_slice = slice(0, len(pstack))
         dsv = decay_stack.valid()
+        dsv.id[gen0_slice] = pstack.valid().id
+        dsv.parent_id[gen0_slice] = pstack.valid().parent_id
         dsv.xdepth[gen0_slice] = pstack.valid().xdepth
         dsv.xdepth_decay[gen0_slice] = pstack.valid().xdepth_decay
         dsv.generation_num[gen0_slice] = pstack.valid().generation_num

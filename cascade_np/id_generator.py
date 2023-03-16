@@ -2,10 +2,10 @@
 import numpy as np
 
 class IdGenerator:
-    _next_id = 1
+    _next_id = 0
 
     def __init__(self):
-        self._next_id = np.int64(1)
+        self._next_id = np.int64(0)
         
     def generate_ids(self, vec):
         next_id = self._next_id + vec.size
@@ -13,7 +13,7 @@ class IdGenerator:
         self._next_id = next_id    
 
     def generated_so_far(self):
-        return self._next_id - 1
+        return self._next_id
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from particle_array import ParticleArray
 from xdepth_on_table import XdepthOnTable
 from xdepth_conversion import XdepthConversion
 from MCEq.geometry.density_profiles import CorsikaAtmosphere
@@ -34,7 +35,11 @@ class CascadeAnalysis:
         not_unique = np.where(counts > 1)[0]
         if len(not_unique) > 0:
             print(f"Final ids = {values[not_unique]} have counts\n"
-                  f" {counts[not_unique]}")
+                  f" {counts[not_unique]} with pdgs\n")
+            for i, c in enumerate(counts):
+                if c > 1:
+                    pp = self.final_particles[np.where(self.final_particles.id == values[i])[0]]
+                    print(f"Particle with id = {values[i]} with pdgs = {pp.pid} meets {c} times")
         else:
             print(f"All final ids are unique, min = {np.min(self.final_particles.id)},"
                   f" max = {np.max(self.final_particles.id)}")    
@@ -62,6 +67,86 @@ class CascadeAnalysis:
         self.energy_conservation()
         self.check_ids()
     
+    
+    def check_particle_existence(self):
+        
+        arch = self.cascade_driver.archival_stack.valid().id
+        fin = self.cascade_driver.final_stack.valid().id
+        gens = self.cascade_driver.generated_stack.valid().id
+        
+        print(f"Number of archival particles = {len(self.cascade_driver.archival_stack)}")
+        print(f"Number of final particles = {len(self.cascade_driver.final_stack)}")
+        print(f"Total number of particles = {len(self.cascade_driver.final_stack) + len(self.cascade_driver.archival_stack)}")
+        print(f"Number in generated stack = {len(self.cascade_driver.generated_stack)}")
+        print(f"Generated so far = {self.cascade_driver.id_generator.generated_so_far()}")
+        
+        
+        print(f"Number of not ordered in generated = {len(np.where(gens[0:-1] > gens[1:])[0])}")
+        print(f"First 10 generated = {gens[0:10]}")
+        
+        print(f"Number of not ordered in archival = {len(np.where(arch[0:-1] > arch[1:])[0])}")
+        print(f"Number of not ordered in final = {len(np.where(fin [0:-1] > fin[1:])[0])}")
+        print(f"Archival min = {np.min(arch)}, max = {np.max(arch)}")
+        print(f"Final min = {np.min(fin)}, max = {np.max(fin)}")
+        
+        tot_num = self.cascade_driver.id_generator.generated_so_far()
+        
+        
+        check = np.empty(tot_num, dtype = np.int32)
+        check[:] = -1
+        
+        for ind in arch:
+            check[ind - 1] = 55
+        
+        for ind in fin:
+            check[ind - 1] = 33 
+            
+        print(f"Number of missing particles = {len(np.where(check == -1)[0])}")
+        print(f"The particles are = {self.cascade_driver.generated_stack.pid[np.where(check == 0)[0]]}")
+                     
+                     
+                     
+    def search_for_parents(self):
+        
+        for i, ida in enumerate(self.cascade_driver.archival_stack.valid().id):
+            self.cascade_driver.generated_stack[ida] = self.cascade_driver.archival_stack[i]
+            
+        for i, ida in enumerate(self.cascade_driver.final_stack.valid().id):
+            self.cascade_driver.generated_stack[ida] = self.cascade_driver.final_stack[i]    
+        
+        
+        final_neutrinos = np.isin(self.cascade_driver.generated_stack.valid().pid, 
+                        np.array([-12, 12, -14, 14], dtype = np.int32))
+        
+        final_neutrino_ids = np.where(final_neutrinos)[0]
+        
+        # print(f"final_neutrino_ids = {final_neutrino_ids[0:10]}")
+        # print(f"where = {np.where(final_neutrinos)[0][0:10]}")
+        
+        parent_ids = self.cascade_driver.generated_stack[final_neutrino_ids].parent_id
+        parents = self.cascade_driver.generated_stack[parent_ids]
+        
+        muon_parents_ids = parents[np.where(np.isin(parents.pid, np.array([-13, 13], dtype = np.int32)))[0]].id
+        
+        neutrinos_from_muons = np.logical_and(np.isin(self.cascade_driver.generated_stack.valid().parent_id, 
+                                       muon_parents_ids), final_neutrinos)
+        
+        
+        
+        neutrinos_from_other = np.logical_and(np.logical_not(neutrinos_from_muons), final_neutrinos)
+        
+        
+        self.neutrinos_from_muons = self.cascade_driver.generated_stack[np.where(neutrinos_from_muons)[0]]
+        self.neutrinos_from_other = self.cascade_driver.generated_stack[np.where(neutrinos_from_other)[0]]
+        
+        pdg_set = set()
+        for pdg in self.cascade_driver.generated_stack[self.neutrinos_from_other.parent_id].pid:
+            pdg_set.add(pdg)
+            
+        print(pdg_set)
+        
+        
+                         
     
     def energy_conservation(self):     
         etot = np.sum(self.energy_data)/self.cascade_driver.runs_number
@@ -274,7 +359,7 @@ class CascadeAnalysis:
             
         plt.legend()
         
-    def plot_energy_kin_dist(self, pids=None, all_pids = None, nbins = 100, xrange = None, 
+    def plot_energy_kin_dist(self, mceq_egrid, pids=None, all_pids = None, nbins = 100, xrange = None, 
                              per_run = False):
         
         print(f"Muon mass = {self.all_pdgs_mass[-13]}, {self.all_pdgs_mass[13]}")
@@ -286,6 +371,7 @@ class CascadeAnalysis:
                 for i, ppid in enumerate(self.pid_data):
                     if ppid in pid:
                         energy_data_pid.append(self.energy_data[i] - self.all_pdgs_mass[ppid])
+                        # energy_data_pid.append(self.energy_data[i])
                 energy_data.append(energy_data_pid)        
             
         if xrange:
@@ -302,18 +388,68 @@ class CascadeAnalysis:
             runs_number = 1 
             
         for i, pid in enumerate(pids):
-            gr, cnt = np.histogram(np.log10(energy_data[i]), bins = nbins, range = xrange)
-            dbin = 10 **cnt[1:] - 10 **cnt[0:-1]
-            cbin = (cnt[1:] + cnt[0:-1])/2
-            gr = ((gr/dbin)/runs_number)*(10**cbin)
+            gr, cnt = np.histogram(energy_data[i], bins = nbins, range = xrange)
+            # dbin = 10 **cnt[1:] - 10 **cnt[0:-1]
+            # cbin = (cnt[1:] + cnt[0:-1])/2
+            # gr = ((gr/dbin)/runs_number)*(10**cbin)
+            gr = gr/runs_number
             
             ss = ""
             for pp in pid:
                 ss += f"+{self.all_pdgs[pp]}"
             
-            plt.semilogx()
-            plt.plot(10 ** cbin, gr, label = ss[1:])
+            egrid = (nbins[0:-1] + nbins[1:])/2
+            
+            # plt.semilogx()
+            # plt.step(10 ** cbin, gr, label = ss[1:])
             # plt.step(10 ** cbin, gr, where='mid', label = ss[1:])
+            plt.xscale("log")
+            plt.step(mceq_egrid, gr, label = ss[1:])
+        
+        
+        self.raw_muon_data = (np.array(energy_data[0]) + self.all_pdgs_mass[13], runs_number, np.array(energy_data[0]))
+        # self.number_of_runs = runs_number
+        
+        muon_neut = np.where(np.isin(self.neutrinos_from_muons.pid, np.array([-14, 14], dtype=np.int32)))[0] 
+        elec_neut = np.where(np.isin(self.neutrinos_from_muons.pid, np.array([-12, 12], dtype=np.int32)))[0]    
+        gr1, cnt = np.histogram(self.neutrinos_from_muons[muon_neut].energy, bins = nbins, range = xrange)
+        gr1 = gr1/runs_number
+        plt.step(mceq_egrid, gr1, label = r"$\bar{\nu}_{\mu} + {\nu}_{\mu}$ from $\mu$")
+        
+        self.numu_from_mu = gr1
+        
+        gr1, cnt = np.histogram(self.neutrinos_from_muons[elec_neut].energy, bins = nbins, range = xrange)
+        gr1 = gr1/runs_number
+        plt.step(mceq_egrid, gr1, label = r"$\bar{\nu}_{e} + {\nu}_{e}$ from $\mu$")
+        
+        self.nue_from_mu = gr1
+        
+        muon_neut = np.where(np.isin(self.neutrinos_from_other.pid, np.array([-14, 14], dtype=np.int32)))[0] 
+        elec_neut = np.where(np.isin(self.neutrinos_from_other.pid, np.array([-12, 12], dtype=np.int32)))[0]    
+        
+        gr2, cnt = np.histogram(self.neutrinos_from_other[muon_neut].energy, bins = nbins, range = xrange)
+        gr2 = gr2/runs_number
+        plt.step(mceq_egrid, gr2, label = r"$\bar{\nu}_{\mu} + {\nu}_{\mu}$ from other")
+        
+        self.numu_from_other = gr2
+        
+        gr2, cnt = np.histogram(self.neutrinos_from_other[elec_neut].energy, bins = nbins, range = xrange)
+        gr2 = gr2/runs_number
+        plt.step(mceq_egrid, gr2, label = r"$\bar{\nu}_{e} + {\nu}_{e}$ from other")
+        
+        self.nue_from_other = gr2
+        
+        gr, cnt = np.histogram(energy_data[0], bins = nbins, range = xrange)
+        self.mu = gr/runs_number
+        
+        gr, cnt = np.histogram(energy_data[1], bins = nbins, range = xrange)
+        self.numu = gr/runs_number
+        
+        gr, cnt = np.histogram(energy_data[2], bins = nbins, range = xrange)
+        self.nue = gr/runs_number
+        
+        
+           
             
         if all_pids:
             gr, cnt = np.histogram(np.log10(self.energy_data), bins = nbins, range = xrange)
@@ -325,8 +461,8 @@ class CascadeAnalysis:
                 
             
         plt.legend()
-        plt.grid()
-        plt.grid(b=True, which='minor', linestyle='--')    
+        # plt.grid()
+        # plt.grid(b=True, which='minor', linestyle='--')    
         
     def plot_height_list(self, pids=None, 
                          all_pids = None, 

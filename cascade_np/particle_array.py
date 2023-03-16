@@ -29,7 +29,8 @@ class ParticleArray:
                        "final_code",
                        "filter_code",
                        "valid_code",
-                       "id"]
+                       "id",
+                       "parent_id"]
 
     def __init__(self, size=1000):
 
@@ -56,6 +57,7 @@ class ParticleArray:
         self.filter_code = np.empty(size, dtype=self._int_type)
         self.valid_code = np.zeros(size, dtype=self._int_type)
         self.id = np.zeros(size, dtype=np.int64)
+        self.parent_id = np.zeros(size, dtype=np.int64)
         self.data = self
         self._len = 0
 
