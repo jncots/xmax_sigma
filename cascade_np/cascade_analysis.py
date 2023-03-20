@@ -359,6 +359,29 @@ class CascadeAnalysis:
             
         plt.legend()
         
+        
+    def kin_energy_histogram(self, pdgs, bins):        
+        
+        final_stack = self.cascade_driver.final_stack.valid()
+        hist_values = None
+        label = ""
+        for pdg in pdgs:
+            mass = self.all_pdgs_mass[pdg]
+            print(f"Histogram of {pdg} with mass {mass}")
+            energies_of_pdg = final_stack.energy[np.where(final_stack.pid == pdg)[0]] - mass
+            hist, bin_edges = np.histogram(energies_of_pdg, bins = bins)
+            
+            if hist_values is None:
+                hist_values = hist
+            else:
+                hist_values += hist
+            
+            label += f"+{self.all_pdgs[pdg]}"    
+
+        hist_values = hist_values/self.cascade_driver.runs_number
+        return  bin_edges, hist_values, label  
+            
+        
     def plot_energy_kin_dist(self, mceq_egrid, pids=None, all_pids = None, nbins = 100, xrange = None, 
                              per_run = False):
         
@@ -414,13 +437,13 @@ class CascadeAnalysis:
         elec_neut = np.where(np.isin(self.neutrinos_from_muons.pid, np.array([-12, 12], dtype=np.int32)))[0]    
         gr1, cnt = np.histogram(self.neutrinos_from_muons[muon_neut].energy, bins = nbins, range = xrange)
         gr1 = gr1/runs_number
-        plt.step(mceq_egrid, gr1, label = r"$\bar{\nu}_{\mu} + {\nu}_{\mu}$ from $\mu$")
+        # plt.step(mceq_egrid, gr1, label = r"$\bar{\nu}_{\mu} + {\nu}_{\mu}$ from $\mu$")
         
         self.numu_from_mu = gr1
         
         gr1, cnt = np.histogram(self.neutrinos_from_muons[elec_neut].energy, bins = nbins, range = xrange)
         gr1 = gr1/runs_number
-        plt.step(mceq_egrid, gr1, label = r"$\bar{\nu}_{e} + {\nu}_{e}$ from $\mu$")
+        # plt.step(mceq_egrid, gr1, label = r"$\bar{\nu}_{e} + {\nu}_{e}$ from $\mu$")
         
         self.nue_from_mu = gr1
         
@@ -429,13 +452,13 @@ class CascadeAnalysis:
         
         gr2, cnt = np.histogram(self.neutrinos_from_other[muon_neut].energy, bins = nbins, range = xrange)
         gr2 = gr2/runs_number
-        plt.step(mceq_egrid, gr2, label = r"$\bar{\nu}_{\mu} + {\nu}_{\mu}$ from other")
+        # plt.step(mceq_egrid, gr2, label = r"$\bar{\nu}_{\mu} + {\nu}_{\mu}$ from other")
         
         self.numu_from_other = gr2
         
         gr2, cnt = np.histogram(self.neutrinos_from_other[elec_neut].energy, bins = nbins, range = xrange)
         gr2 = gr2/runs_number
-        plt.step(mceq_egrid, gr2, label = r"$\bar{\nu}_{e} + {\nu}_{e}$ from other")
+        # plt.step(mceq_egrid, gr2, label = r"$\bar{\nu}_{e} + {\nu}_{e}$ from other")
         
         self.nue_from_other = gr2
         

@@ -16,6 +16,8 @@ class GetMCEQDist():
         config.enable_muon_energy_loss = False
         config.muon_helicity_dependence = False
         config.adv_set["disable_decays"] = [-13, 13, -211, 211]
+        # config.adv_set["disable_decays"] = []
+        print(config.adv_set)
         mceq_run = MCEqRun(
         #provide the string of the interaction model
         interaction_model='DPMJET-III-19.1',
@@ -40,7 +42,7 @@ class GetMCEQDist():
 
         #Set the zenith angle
         mceq_run.set_theta_deg(theta)
-        n_pts = 1000
+        n_pts = 100
         X_grid = np.linspace(0.1, mceq_run.density_model.max_X, n_pts)
         mceq_run.set_single_primary_particle(1e2, pdg_id = 2212)
         mceq_run.solve(int_grid=X_grid)
@@ -60,6 +62,7 @@ class GetMCEQDist():
         # print(X_grid[1]-X_grid[0])
         # print(xbin1, X_grid)
 
+        # xd = 1193
         xd = 635.955
         # xd = 587.6807
         # xd = 1168
@@ -81,6 +84,10 @@ class GetMCEQDist():
         
         self.nue_spec = (e_grid, (part_long_spectra["nue"][1][xgrid_inx[0]]+
                     part_long_spectra["antinue"][1][xgrid_inx[0]])*e_width, r"$\bar{\nu}_{e} + {\nu}_{e}$ mceq")
+
+        self.pi_spec = (e_grid, (part_long_spectra["pi+"][1][xgrid_inx[0]]+
+                    part_long_spectra["pi-"][1][xgrid_inx[0]])*e_width, r"$\bar{\pi}^{+} + {\pi}^{-}$ mceq")
+
 
         self.ebins = mceq_run.e_bins
         self.egrid = e_grid

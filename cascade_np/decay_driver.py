@@ -109,9 +109,11 @@ class DecayDriver:
         # print(f"GEN_SLICE = {generation_slice}")
         # generation_slice contains elements for current generation (starting with 1st generation)
         # parent_indices[generation_slice] are corresponding indicies of parents
-        pstack.xdepth[generation_slice] = pstack.xdepth_decay[parent_indices[generation_slice]]            
+        pstack.xdepth[generation_slice] = pstack.xdepth_decay[parent_indices[generation_slice]]
+        pstack.xdepth_stop[generation_slice] = pstack.xdepth_stop[parent_indices[generation_slice]]          
         pstack.generation_num[generation_slice] = pstack.generation_num[parent_indices[generation_slice]] + 1
         pstack.parent_id[generation_slice] = pstack.id[parent_indices[generation_slice]]
+        pstack.final_code[generation_slice] = pstack.final_code[parent_indices[generation_slice]]
         # Set filter code to fill it in "set_xdepth_code()""
         pstack.filter_code[generation_slice] = FilterCode.XD_DECAY_OFF.value
         self._set_xdepth_decay(pstack)
@@ -166,9 +168,11 @@ class DecayDriver:
         dsv.id[gen0_slice] = pstack.valid().id
         dsv.parent_id[gen0_slice] = pstack.valid().parent_id
         dsv.xdepth[gen0_slice] = pstack.valid().xdepth
+        dsv.xdepth_stop[gen0_slice] = pstack.valid().xdepth_stop
         dsv.xdepth_decay[gen0_slice] = pstack.valid().xdepth_decay
         dsv.generation_num[gen0_slice] = pstack.valid().generation_num
         dsv.filter_code[gen0_slice] = pstack.valid().filter_code
+        dsv.final_code[gen0_slice] = pstack.valid().final_code
         
         # Get parents array and fill in rest generations
         parents = self._pythia.event.parents()[:,0]
