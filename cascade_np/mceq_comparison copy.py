@@ -43,29 +43,66 @@ class MCEQDistributions():
         self.e_widths = mceq_run.e_widths
         self.e_bins = mceq_run.e_bins
 
-        if mceq_run.density_model.max_X < slant_depth:
-            raise ValueError(f"Maximum slant_xdepth = {mceq_run.density_model.max_X}")
-
         #Set the zenith angle
         mceq_run.set_theta_deg(theta_deg)
+        n_pts = 100
+        X_grid = np.linspace(0.1, mceq_run.density_model.max_X, n_pts)
         mceq_run.set_single_primary_particle(energy, pdg_id = pdg_id)
         mceq_run.solve(int_grid=[slant_depth])
 
         # Populate longitudinal spectra for all particles:
         part_long_spectra = {}
-        for p in mceq_run.pman.all_particles: 
-            part_long_spectra[p.name] = mceq_run.get_solution(p.name, grid_idx=0)
-
+        for p in mceq_run.pman.all_particles:
+            print(f"particle = {p.name}")
+            longitudinal_spectrum = []
+            for idx in range(n_pts):
+                longitudinal_spectrum.append(mceq_run.get_solution(p.name, grid_idx=0))
+            
+            part_long_spectra[p.name] = (p, longitudinal_spectrum)
+    
+    
+        X_bins = X_grid + (X_grid[1]+X_grid[0])/2
+        X_bins = np.array([0e0] + list(X_bins))
+        xgrid_idx = np.digitize([slant_depth], X_bins)[0]
+        
+        print(f"Xbins = {X_bins[xgrid_idx - 1], X_bins[xgrid_idx]}")
+        
+        
         self.flux = dict()
+        
         for pnames in pname_tuples:
             
             group_name = pnames[0]
             self.flux[group_name] = None
             for pname in pnames[1:]:
                 if self.flux[group_name] is None:
-                    self.flux[group_name] = part_long_spectra[pname]
+                    self.flux[group_name] = part_long_spectra[pname][1][xgrid_idx]
                 else:
-                    self.flux[group_name] += part_long_spectra[pname]
+                    self.flux[group_name] += part_long_spectra[pname][1][xgrid_idx] 
                 
             self.flux[group_name] = self.flux[group_name] * self.e_widths
+
+            
+        
+        # self.mu_spec =(e_grid, (part_long_spectra["mu+"][1][xgrid_inx[0]]+
+        #             # part_long_spectra["mu+_l"][1][xgrid_inx[0]]+
+        #             # part_long_spectra["mu+_r"][1][xgrid_inx[0]]+
+        #             part_long_spectra["mu-"][1][xgrid_inx[0]]
+        #             # part_long_spectra["mu-_r"][1][xgrid_inx[0]]+
+        #             # part_long_spectra["mu-_l"][1][xgrid_inx[0]]
+        #             )*e_width, r"${\mu}^{+} + {\mu}^{-}$ mceq")
+
+        # self.numu_spec = (e_grid, (part_long_spectra["numu"][1][xgrid_inx[0]]+
+        #             part_long_spectra["antinumu"][1][xgrid_inx[0]])*e_width, r"$\bar{\nu}_{\mu} + {\nu}_{\mu}$ mceq")
+        
+        
+        # self.nue_spec = (e_grid, (part_long_spectra["nue"][1][xgrid_inx[0]]+
+        #             part_long_spectra["antinue"][1][xgrid_inx[0]])*e_width, r"$\bar{\nu}_{e} + {\nu}_{e}$ mceq")
+
+        # self.pi_spec = (e_grid, (part_long_spectra["pi+"][1][xgrid_inx[0]]+
+        #             part_long_spectra["pi-"][1][xgrid_inx[0]])*e_width, r"$\bar{\pi}^{+} + {\pi}^{-}$ mceq")
+
+
+        # self.ebins = mceq_run.e_bins
+        # self.egrid = e_grid
     

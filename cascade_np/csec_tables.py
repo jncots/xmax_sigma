@@ -75,7 +75,7 @@ class CrossSectionTableMCEq:
         self.interaction_cs = InteractionCrossSections(hdf5_backend, self.interaction_model)
         self.set_energy_grid()
 
-    def set_energy_grid(self, *, emin=1e0, emax=1e11, npoints=1000):
+    def set_energy_grid(self, *, emin=1e-1, emax=1e11, npoints=1000):
         pid_size = 0
         for p in self.mceq_run.pman.all_particles:
             if p.is_hadron:
@@ -92,17 +92,27 @@ class CrossSectionTableMCEq:
         for p in self.mceq_run.pman.all_particles:
             if p.is_hadron:
                 pdg = p.pdg_id[0]
+                
+                pdg1 = pdg
+                if pdg1 == -211:
+                    pdg1 == 211
                 print(f"Tabulate cross-section for {p.name}({pdg})")
                 if pdg is None:
                     print(f"AGA, pdg is {pdg}")
                 self.sigma_tab[pid, :] = np.interp(self.energy_grid, 
                                             self.mceq_run._int_cs.energy_grid.c + p.mass, 
-                                            self.mceq_run._int_cs.get_cs(pdg, True))
+                                            self.mceq_run._int_cs.get_cs(pdg1, True))
+                
+                # If some points have -0.0 and other +0.0, then 
+                # interpolation can give nan when xdepth is calculated
+                # We set all zeros to +0.0, to get inf in xdepth
+                self.sigma_tab[pid, self.sigma_tab[pid, :] == np.NZERO] = np.PZERO
                 
                 self.pid_pdg[pdg] = pid
                 pid += 1
         with np.errstate(divide='ignore'):
-            self.xdepth_tab[:] = np.divide(self.cs_xdepth_conv.get_cs_xdepth_air(), self.sigma_tab)     
+            self.xdepth_tab[:] = np.divide(self.cs_xdepth_conv.get_cs_xdepth_air(), self.sigma_tab)
+                 
             
     def get_sigma(self):
         return self.sigma_tab

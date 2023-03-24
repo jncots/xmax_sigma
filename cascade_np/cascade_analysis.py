@@ -378,6 +378,7 @@ class CascadeAnalysis:
             
             label += f"+{self.all_pdgs[pdg]}"    
 
+        label = label[1:]
         hist_values = hist_values/self.cascade_driver.runs_number
         return  bin_edges, hist_values, label  
             

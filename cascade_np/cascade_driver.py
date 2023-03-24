@@ -93,6 +93,7 @@ class CascadeDriver:
                 
         if self.initial_run:
             self.final_stack.clear()
+            self.final_stack_decay.clear()
             self.archival_stack.clear()
             self.generated_stack.clear()
             self.number_of_decays = 0
@@ -129,57 +130,11 @@ class CascadeDriver:
             
             iloop += 1
         
-        # self.run_decay_at_surface()
+        self.run_decay_at_surface()
         
         self.loop_execution_time += time.time() - start_time
         self.runs_number += 1
     
-    def contains_muons(self, stack, name):
-        muon_number = len(np.where(np.isin(stack.valid().pid, [-13, 13]))[0])
-        if muon_number > 1:
-            print(f"{name} has {muon_number} muons")
-        
-    
-    def search_for_muons(self, number):
-        
-        self.contains_muons(self.working_stack, f"{number} working_stack")
-        self.contains_muons(self.final_stack, f"{number} final_stack")
-        self.contains_muons(self.decay_stack, f"{number} decay_stack")
-        self.contains_muons(self.inter_stack, f"{number} inter_stack")
-        self.contains_muons(self.rejection_stack, f"{number} rejection_stack")
-        self.contains_muons(self.children_stack, f"{number} children_stack")
-        
-    def final_contains_small_xdepth_stop(self, stack, name):
-        entry_number = len(np.where(stack.valid().xdepth_stop < self.stop_xdepth)[0])
-        if entry_number > 0:
-            print(f"{name} has {entry_number} entries")
-        
-    
-    def search_for_xdepth_stop(self, number):
-        
-        self.final_contains_small_xdepth_stop(self.final_stack, f"{number} final_stack")
-        # self.contains_muons(self.decay_stack, f"{number} decay_stack")
-        # self.contains_muons(self.inter_stack, f"{number} inter_stack")
-        # self.contains_muons(self.rejection_stack, f"{number} rejection_stack")
-        # self.contains_muons(self.children_stack, f"{number} children_stack")    
-
-    
-    def search_missing_particles(self, init_stacks, final_stacks):
-        
-        init_particles = 0
-        for st in init_stacks:
-            init_particles += len(st)
-        
-        final_particles = 0
-        for st in final_stacks:
-            final_particles += len(st)
-        
-        
-        print(f"TEST: {init_particles - final_particles} MISSING,"
-              f" INIT = {init_particles}, FINAL = {final_particles}")    
-        assert init_particles == final_particles, f"{init_particles - final_particles} missing particles!!!"    
-                
-        
     
     def filter_by_energy(self):   
         
@@ -204,6 +159,10 @@ class CascadeDriver:
         
         
         particle_number = above_threshold.size + should_decay.size + should_not_decay.size
+        
+        if above_threshold.size < len(wstack):
+            print(f"Above threshold = {above_threshold.size/len(wstack)*100} %")
+        
         assert particle_number == len(wstack), (
                 "Number of distributed particles not equal to number of initial particles")
         
@@ -241,10 +200,10 @@ class CascadeDriver:
         
         
         # Particles that should be decayed at surface
-        dstack_portion = wstack[should_decay]
-        dstack_portion.xdepth_stop[:] = max_xdepth
-        dstack_portion.final_code[:] = 1
-        self.final_stack_decay.append(dstack_portion)
+        dfstack_portion = wstack[should_decay]
+        dfstack_portion.xdepth_stop[:] = max_xdepth
+        dfstack_portion.final_code[:] = 1
+        self.final_stack_decay.append(dfstack_portion)
         
         # Particles that are already at their final stage
         fstack_portion = wstack[should_not_decay]
@@ -257,10 +216,44 @@ class CascadeDriver:
         istack_portion.xdepth_stop[:] = istack_portion.xdepth_inter
         self.inter_stack = istack_portion
         
-        dstack_portion = wstack[wstack.xdepth_decay > wstack.xdepth_inter]
+        dstack_portion = wstack[wstack.xdepth_inter > wstack.xdepth_decay]
         dstack_portion.xdepth_stop[:] = dstack_portion.xdepth_decay
         dstack_portion.final_code[:] = -1
         self.decay_stack.append(dstack_portion)
+        
+        
+        # print(f"Number of initial particles = {len(wstack)}")
+        # print(f"To final decay stack = {len(dfstack_portion)/len(wstack) * 100}% particles")
+        # print(f"To final stack = {len(fstack_portion)/len(wstack) * 100}% particles")
+        # print(f"To inter stack = {len(istack_portion)/len(wstack) * 100}% particles")
+        # print(f"To decay stack = {len(dstack_portion)/len(wstack) * 100}% particles")
+        # total_num = len(dfstack_portion) + len(fstack_portion) + len(istack_portion) + len(dstack_portion) 
+        # # print(f"Total numbers in secondary stacks = {total_num/len(wstack) * 100}%")
+        
+        # if total_num < len(wstack):
+            
+        #     test_array = np.empty_like(wstack.id)
+        #     test_array[:] = -1
+            
+        #     test_array[should_decay] = 1
+        #     test_array[should_not_decay] = 2
+        #     test_array[wstack.xdepth_inter < wstack.xdepth_decay] = 3
+        #     test_array[wstack.xdepth_inter > wstack.xdepth_decay] = 4
+            
+        #     missing = np.where(test_array == -1)[0]
+            
+        #     print(f"ID = {wstack[missing].id}")
+        #     print(f"Pdg = {wstack[missing].pid}")
+        #     print(f"Energy = {wstack[missing].energy}")
+        #     print(f"Xdepth = {wstack[missing].xdepth}")
+        #     print(f"Xdepth_decay = {wstack[missing].xdepth_decay}")
+        #     print(f"Xdepth_inter = {wstack[missing].xdepth_inter}")
+            
+        #     print(f"Xdepth_decay wstack = {wstack.xdepth_decay}")
+        #     print(f"Xdepth_inter wstack = {wstack.xdepth_inter}")
+             
+        #     raise RuntimeError("Total number is smaller")
+
         
         
         
@@ -297,82 +290,23 @@ class CascadeDriver:
 
         self.working_stack.clear()
         self.working_stack.append(self.children_stack)
-              
-        # if len(self.rejection_stack) > 0:
-        #     fvalid = self.rejection_stack.valid()
-        #     should_decay = np.isin(fvalid.pid, self.force_decaying_pdgs)
-        #     should_not_decay = np.logical_not(should_decay)
-            
-            
-        #     fstack_portion = fvalid[np.where(should_not_decay)]
-        #     # fstack_portion.xdepth_stop[:] = self.stop_xdepth  
-        #     # self.debug_append_final_stack(fstack_portion)       
-        #     self.final_stack.append(fstack_portion)
-            
-        #     decaying_particles = fvalid[np.where(should_decay)]
-        #     # decaying_particles.filter_code[:] = FilterCode.XD_DECAY_OFF.value
-        #     self.decay_stack.append(decaying_particles)
         
-        #     # self.search_missing_particles(init_stacks = [self.rejection_stack.valid()], 
-        #     #                             final_stacks = [fstack_portion, 
-        #     #                                             decaying_particles,
-        #     #                                             ])     
-         
-    # def filter_particles(self):   
-    #     cstack = self.children_stack.valid()
+        # tot_energy = np.sum(self.inter_stack.valid().energy)
+        # print(f"\n----------")
+        # print(f"Number of interacting particles = {len(self.inter_stack)}")
+        # print(f"Total energy = {tot_energy}, {tot_energy/self.initial_energy}")
+        # child_energy = np.sum(self.children_stack.valid().energy)
+        # print(f"Child particles = {len(self.children_stack)} with int_en = {100* child_energy/tot_energy} %")
+        # print(f"Child particles pdg = {self.children_stack.valid().pid}")
+        # print(f"Child particles energy = {self.children_stack.valid().energy}")
         
-    #     below_threshold = cstack.energy < self.threshold_energy
-    #     above_threshold = np.logical_not(below_threshold)
+        # rej_energy = np.sum(self.rejection_stack.valid().energy)
+        # print(f"Rejc particles = {len(self.rejection_stack)} with int_en = {100* rej_energy/tot_energy} %")
+        # print(f"Rejc particles pdg = {self.rejection_stack.valid().pid}")
+        # print(f"Rejc particles energy = {self.rejection_stack.valid().energy}")
         
-    #     should_decay = np.isin(cstack.pid, self.force_decaying_pdgs)
-    #     should_not_decay = np.logical_not(should_decay)
-        
-        
-    #     to_decay_stack = np.logical_and(below_threshold, should_decay)
-    #     to_final_stack = np.logical_and(below_threshold, should_not_decay)
-        
-    #     decay_portion = cstack[np.where(to_decay_stack)[0]]
-    #     decay_portion.final_code[:] = 4
-    #     self.decay_stack.append(decay_portion)
-        
-    #     fstack_portion = cstack[np.where(to_final_stack)[0]]
-    #     fstack_portion.xdepth_stop[:] = self.stop_xdepth
-    #     # self.debug_append_final_stack(fstack_portion) 
-    #     self.final_stack.append(fstack_portion)
-        
-    #     self.working_stack.clear()
-        
-    #     work_portion = cstack[np.where(above_threshold)[0]] 
-    #     self.working_stack.append(work_portion)
-        
-        # print(f"cstack.id = {cstack.valid().id} ,cstack.pid = {cstack.valid().pid}, cstack.energy = {cstack.valid().energy}")
-        # print(f"fstack_portion.pid = {fstack_portion.valid().pid}, fstack_portion.energy = {fstack_portion.valid().energy}")
-        # print(f"decay_portion.pid = {decay_portion.valid().pid}, decay_portion.energy = {decay_portion.valid().energy}")
-        # print(f"work_portion.id = {work_portion.valid().id} ,work_portion.pid = {work_portion.valid().pid}, work_portion.energy = {work_portion.valid().energy}")
-        
-        # self.search_missing_particles(init_stacks = [cstack], 
-        #                                 final_stacks = [fstack_portion,
-        #                                                 decay_portion, 
-        #                                                 work_portion,
-        #                                                 ])   
-    
-    def run_decay_at_surface(self):
-        if len(self.final_stack_decay) == 0:
-            return
-        
-        self.rejection_stack.clear()
-        self.working_stack.clear()
-        
-        self.number_of_decays += self.decay_driver.run_decay(self.final_stack_decay, 
-                                                             decayed_particles=self.working_stack,
-                                                             stable_particles=self.rejection_stack)
-        
-        
-        self.final_stack.append(self.working_stack)
-        self.final_stack.append(self.rejection_stack)
-        
-        
-        
+        # print(f"Total energy in secondaries = {100 * (child_energy + rej_energy)/tot_energy} %")
+
     
     def run_particle_decay(self):
         if len(self.decay_stack) == 0:
@@ -414,19 +348,29 @@ class CascadeDriver:
         self.working_stack.append(self.rejection_stack)  
         
         self.decay_stack.clear()
-
-    def debug_append_final_stack(self, array_to_append):
-        print(f"START DEBUG_APPEND")
-        print(f"final.id = {self.final_stack.valid().id}")
         
-        cont = np.where(np.isin(array_to_append.valid().id, self.final_stack.valid().id))[0]
-        if len(cont) > 0:
-            print(f"IDs = {array_to_append.valid().id[cont]},\n PDGS = {array_to_append.valid().pid[cont]}"
-                  f" ENs = {array_to_append.valid().energy[cont]}")
-            print(f"final.id = {self.final_stack.valid().id}")
-            raise ValueError("WRONG APPEND")
         
-        print(f"END DEBUG_APPEND")
+    def run_decay_at_surface(self):
+        
+        # print(f"Run decay1, number = {len(self.final_stack_decay)}")
+        if len(self.final_stack_decay) == 0:
+            return
+        
+        # print("Run decay2")
+        self.rejection_stack.clear()
+        self.working_stack.clear()
+        
+        self.number_of_decays += self.decay_driver.run_decay(self.final_stack_decay, 
+                                                             decayed_particles=self.working_stack,
+                                                             stable_particles=self.rejection_stack)
+        
+        
+        # print(f"Number of particles to decay = {len(self.final_stack_decay)}")
+        # print(f"Number of particles appeared in decay = {len(self.working_stack)}")
+        # print(f"Number of particles rejected in decay = {len(self.rejection_stack)}")
+        
+        self.final_stack.append(self.working_stack)
+        self.final_stack.append(self.rejection_stack)
         
     def get_decaying_particles(self):
         return self.decay_stack

@@ -42,6 +42,7 @@ class CrossSectionOnTable:
                 xdepth[pid_slice] = np.full_like(energy[pid_slice], np.inf, dtype=np.float64)
             else:
                 xdepth[pid_slice] = np.interp(energy[pid_slice], self.energy_grid, self.xdepth_tab[pid,:])
+                    
         return xdepth
             
     def get_xdepth(self, pdg, energy):
@@ -53,10 +54,9 @@ class CrossSectionOnTable:
             energy (np.array): array of energies
             xdepth (np.array): output array with xdepth
         """
-        mean_xdepth = self.get_mean_xdepth(pdg, energy)
+        mean_xdepth = self.get_mean_xdepth(pdg, energy)        
         rnd = -np.log(1 - np.random.rand(len(pdg)))
-        return mean_xdepth * rnd
-        # return mean_xdepth    
+        return mean_xdepth * rnd  
                  
 
  
