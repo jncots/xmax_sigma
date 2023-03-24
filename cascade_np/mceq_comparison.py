@@ -27,7 +27,7 @@ class MCEQDistributions():
         config.muon_helicity_dependence = muon_helicity_dependence
         config.adv_set["disable_decays"] = disable_decays
         
-        print(json.dumps(config.adv_set, indent = 4))
+        # print(json.dumps(config.adv_set, indent = 4))
         
         mceq_run = MCEqRun(
             #provide the string of the interaction model

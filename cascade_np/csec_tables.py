@@ -92,16 +92,10 @@ class CrossSectionTableMCEq:
         for p in self.mceq_run.pman.all_particles:
             if p.is_hadron:
                 pdg = p.pdg_id[0]
-                
-                pdg1 = pdg
-                if pdg1 == -211:
-                    pdg1 == 211
                 print(f"Tabulate cross-section for {p.name}({pdg})")
-                if pdg is None:
-                    print(f"AGA, pdg is {pdg}")
                 self.sigma_tab[pid, :] = np.interp(self.energy_grid, 
                                             self.mceq_run._int_cs.energy_grid.c + p.mass, 
-                                            self.mceq_run._int_cs.get_cs(pdg1, True))
+                                            self.mceq_run._int_cs.get_cs(pdg, True))
                 
                 # If some points have -0.0 and other +0.0, then 
                 # interpolation can give nan when xdepth is calculated
