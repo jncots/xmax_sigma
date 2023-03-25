@@ -45,7 +45,7 @@ class NextInterXdepth:
         cs_xdepth_conv = CSXdepthConversion()
         cs_table = CrossSectionTableMCEq(interaction_model="DPMJETIII191",
                                          cs_xdepth_conv = cs_xdepth_conv)
-        cs_table.add_pdgs(PdgLists().longer_pi0_to_mceq)
+        # cs_table.add_pdgs(PdgLists().longer_pi0_to_mceq)
         self.inter_xdepth = CrossSectionOnTable(cs_table)
         self.max_xdepth = xdepth_on_table.xdepth_conversion.get_max_xdepth()
         self._stop_xdepth = None
@@ -77,8 +77,7 @@ class NextInterXdepth:
 
 class DefaultXdepthGetter:
     def __init__(self, theta_deg = 0, mode="both"):
-        # self.atmosphere = CorsikaAtmosphere("SouthPole", "December")
-        self.atmosphere = CorsikaAtmosphere("BK_USStd", None)
+        self.atmosphere = CorsikaAtmosphere("USStd", None)
         self.xdepth_conversion =  XdepthConversion(atmosphere = self.atmosphere)
         self.xdepth_conversion.set_theta(theta_deg)
         self.max_xdepth = self.xdepth_conversion.get_max_xdepth()
@@ -135,8 +134,8 @@ if __name__ == "__main__":
     # )
     
     pstack.push(
-        pid=np.array([-211, 211, -211, 211]),
-        energy=np.array([1e0, 1e0, 1e3, 1e3]),
+        pid=np.array([-13, 13, -11, 11]),
+        energy=np.array([1e-1, 1e-1, 1e3, 1e3]),
         xdepth=np.array([1e1, 1e1, 1e1, 1e1]),
     )
     

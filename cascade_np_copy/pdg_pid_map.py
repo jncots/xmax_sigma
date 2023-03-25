@@ -58,7 +58,7 @@ class PdgLists:
             if 10 < abs(pdg) < 6000:
                 pdgs_6000.append(pdg)
                 
-        
+        pdgs_6000.sort(key=lambda x: (abs(x), x > 0))
         self.pdgs_below_abs6000 = np.array(pdgs_6000, dtype = np.int32)
         
         
@@ -86,15 +86,11 @@ class PdgLists:
                                        ], dtype = np.int32)
             
         self.mceq_finals = np.array([-11, 11, 12, -13, 13, 14, 16, 22], dtype = np.int32)
-        
-        
-        
-        self.mceq_particles = np.array([-11, 11, -12, 12, -13, 13, -14, 14, 
-                                        -16, 16, 22, 
-                                        111, 130, -211, 211, 
-                                        310, -321, 321, 
+                
+        self.mceq_particles = np.array([-11, 11, -12, 12, -13, 13, -14, 14, -16, 16, 22, 
+                                        111, 130, -211, 211, 310, -321, 321, 
                                         -411, 411, -421, 421, -431, 431, 
-                                        -2112, 2112, -2212, 2212, -3122, 3122,
+                                        -2112, 2112, -2212, 2212, -3122, 3122
                                        ], dtype = np.int32)
         
         

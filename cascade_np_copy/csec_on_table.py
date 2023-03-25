@@ -36,8 +36,13 @@ class CrossSectionOnTable:
         """
         xdepth = np.empty(len(pdg), dtype=np.float64)
         pid_array = self.pmap.get_pids(pdg)
+        # print(f"pid_slice = {pid_array}")
+        # print(f"pid_pdg = {self.pmap.pid_pdg}")
+        # print(f"pdg_pid = {self.pmap.pdg_pid}")
+        # print(f"pid_pdg_dict = {self.pmap.pid_pdg_dict}")
         for pid in set(pid_array):
             pid_slice = np.where(pid_array == pid)[0]
+            # print(f"pid_slice = {pid_slice}")
             if abs(pid) > self.pmap.max_pid:
                 xdepth[pid_slice] = np.full_like(energy[pid_slice], np.inf, dtype=np.float64)
             else:
@@ -66,15 +71,16 @@ if __name__ == "__main__":
     from pdg_pid_map import PdgPidMap, PdgLists
     
     cs_table = CrossSectionTableMCEq()
-    cs_table.add_pdgs(PdgLists().longer_pi0_to_mceq)
+    # cs_table.add_pdgs(PdgLists().longer_pi0_to_mceq)
     
     csec = CrossSectionOnTable(cs_table)
     
     
 
-    pdg_list = np.array([111, 111, 111, 
-                        111, -211, 
-                        111, 111, 2212, 111], dtype=np.int32)
+    # pdg_list = np.array([111, 111, 111, 
+    #                     111, -211, 
+    #                     111, 111, 2212, 111], dtype=np.int32)
+    pdg_list = np.array([13, -13, 11, -11, 22], dtype=np.int32)
     energy_list = np.array([5e3, 5e2, 4e6, 4e3, 2e5, 2e5, 4e3, 5e2, 2e5], dtype=np.float64)    
 
     print(csec.get_mean_xdepth(pdg_list, energy_list))
