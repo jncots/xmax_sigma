@@ -1,5 +1,5 @@
 import chromo
-from particle.particle_array import ParticleArray
+from data_structs.particle_array import ParticleArray
 import numpy as np
 
 

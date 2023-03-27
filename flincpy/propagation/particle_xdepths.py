@@ -1,12 +1,13 @@
-from decay_xdepth import DecayXdepth
-from csec_tables import CrossSectionTableMCEq, CSXdepthConversion
-from pdg_pid_map import PdgLists
-from csec_on_table import CrossSectionOnTable
-from xdepth_on_table import XdepthOnTable
-from xdepth_conversion import XdepthConversion
+from propagation.decay_xdepth import DecayXdepth
+from propagation.interaction.csec_tables import CrossSectionTableMCEq, CSXdepthConversion
+from propagation.interaction.csec_on_table import CrossSectionOnTable
+
+from data_structs.pdg_pid_map import PdgLists
+from data_structs.particle_array import FilterCode
+from propagation.slant_depth.xdepth_on_table import XdepthOnTable
+from propagation.slant_depth.xdepth_conversion import XdepthConversion
 from MCEq.geometry.density_profiles import CorsikaAtmosphere
-from tab_pproperties import TabulatedParticleProperties, ParticlePropertiesParticle
-from particle_array import FilterCode
+from propagation.tab_pproperties import TabulatedParticleProperties, ParticlePropertiesParticle
 import numpy as np
 
 

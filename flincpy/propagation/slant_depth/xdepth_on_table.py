@@ -1,4 +1,4 @@
-from xdepth_conversion import XdepthConversion
+from propagation.slant_depth.xdepth_conversion import XdepthConversion
 import numpy as np
 
 

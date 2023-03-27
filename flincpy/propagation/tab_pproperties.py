@@ -1,7 +1,7 @@
 from particle import Particle
 import numpy as np
 import math
-from pdg_pid_map import PdgPidMap
+from data_structs.pdg_pid_map import PdgPidMap
 
 class ParticlePropertiesParticle:
     """The class should provide

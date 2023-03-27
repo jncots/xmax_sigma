@@ -1,8 +1,8 @@
 import chromo
 import numpy as np
 from pathlib import Path
-from particle.particle_array import ParticleArray, FilterCode
-from particle.pdg_pid_map import PdgLists
+from data_structs.particle_array import ParticleArray, FilterCode
+from data_structs.pdg_pid_map import PdgLists
 
 chormo_path = Path(chromo.__file__).parent
 

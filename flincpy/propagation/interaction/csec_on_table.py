@@ -1,5 +1,5 @@
 import numpy as np
-from pdg_pid_map import PdgPidMap
+from data_structs.pdg_pid_map import PdgPidMap
 
                           
 class CrossSectionOnTable:

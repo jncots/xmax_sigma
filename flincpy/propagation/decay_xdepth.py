@@ -1,6 +1,7 @@
-from particle_array import ParticleArray
-from tab_pproperties import TabulatedParticleProperties
-from xdepth_on_table import XdepthOnTable
+from data_structs.particle_array import ParticleArray
+# from casdata_structs.particle_array import ParticleArray
+from propagation.tab_pproperties import TabulatedParticleProperties
+from propagation.slant_depth.xdepth_on_table import XdepthOnTable
 import numpy as np
 
 
@@ -16,7 +17,6 @@ class DecayXdepth:
         gamma = np.divide(
             energy, mass, out=np.full_like(mass, np.inf), where=mass != 0
         )
-        print(f"Mass = {mass}, gamma = {gamma}")
         bgamma = np.sqrt((gamma + 1) * (gamma - 1))
         rnd = -np.log(1 - np.random.rand(len(pdg)))
         length = rnd * bgamma * self.pp_tab.ctau(pdg)

@@ -1,7 +1,8 @@
 import numpy as np
-from particle.particle_array import ParticleArray
-from particle.pdg_pid_map import PdgLists
-from particle.id_generator import IdGenerator
+
+from data_structs.particle_array import ParticleArray
+from data_structs.pdg_pid_map import PdgLists
+from data_structs.id_generator import IdGenerator
 
 from propagation.particle_xdepths import DefaultXdepthGetter
 
