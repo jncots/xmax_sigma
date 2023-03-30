@@ -16,22 +16,25 @@ class MCEQDistributions():
                  pdg_id,
                  theta_deg,
                  slant_depth,
+                 energy_range,
                  pname_tuples,
                  interaction_model = "DPMJET-III-19.1", 
                  generic_losses_all_charged = True,
                  enable_energy_loss = True, 
                  muon_helicity_dependence = True,
                  disable_decays = [],
+                 hybrid_crossover = 0.5,
                  density_model = ("CORSIKA", ("USStd", None))):
         
-        config.mceq_db_fname = "mceq_db_lext_dpm191_v150.h5"
+        # config.mceq_db_fname = "mceq_db_lext_dpm191_v150.h5"
         config.generic_losses_all_charged = generic_losses_all_charged
         config.enable_energy_loss = enable_energy_loss
         config.muon_helicity_dependence = muon_helicity_dependence
         config.adv_set["disable_decays"] = disable_decays
+        config.hybrid_crossover = hybrid_crossover
         
-        config.e_min = 1e-1
-        config.e_max = 1e4
+        config.e_min = energy_range[0]
+        config.e_max = energy_range[1]
         # # config.enable_2D = True
         # # config.mceq_db_fname = 'mceq_db_rare_decays_URQMD_lext_2D.h5'
         # config.enable_default_tracking = False
@@ -75,10 +78,12 @@ class MCEQDistributions():
         # Populate longitudinal spectra for all particles:
         part_long_spectra = {}
         for p in mceq_run.pman.all_particles:
+            # print(f"Spectrum for {p.name}")
             try: 
                 part_long_spectra[p.name] = mceq_run.get_solution(p.name, grid_idx=0)
             except Exception as ex:
-                print(ex)    
+                pass
+                # print(ex)    
 
         self.flux = dict()
         for pnames in pname_tuples:

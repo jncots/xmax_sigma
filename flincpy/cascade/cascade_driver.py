@@ -13,12 +13,10 @@ import time
 
 
 class CascadeDriver:
-    def __init__(self, zenith_angle):
+    def __init__(self):
         
-        self.id_generator = IdGenerator()
-        self.xdepth_getter = DefaultXdepthGetter(zenith_angle)
         self.hadron_interaction = HadronInteraction()
-        self.decay_driver = DecayDriver(self.xdepth_getter)
+        self.id_generator = IdGenerator()
         
         
         self.final_stack_decay = ParticleArray()
@@ -34,6 +32,10 @@ class CascadeDriver:
         self.children_stack = ParticleArray()
     
     
+    def set_zenith_angle(self, zenith_angle):
+        self.xdepth_getter = DefaultXdepthGetter(zenith_angle)
+        self.decay_driver = DecayDriver(self.xdepth_getter)
+        
         
     def set_decaying_pdgs(self, mceq_decaying_pdgs):
         pdg_lists = PdgLists()
@@ -66,6 +68,7 @@ class CascadeDriver:
     
     def simulation_parameters(self, *, pdg, energy, 
                               threshold_energy,
+                              zenith_angle,
                               mceq_decaying_pdgs,
                               xdepth = 0,
                               stop_height = 0,
@@ -77,6 +80,7 @@ class CascadeDriver:
         self.threshold_energy = threshold_energy
         self.initial_xdepth = xdepth
         
+        self.set_zenith_angle(zenith_angle)
         self.set_decaying_pdgs(mceq_decaying_pdgs)
         
         self.stop_xdepth = self.xdepth_getter.xdepth_conversion.convert_h2x(stop_height * 1e5)

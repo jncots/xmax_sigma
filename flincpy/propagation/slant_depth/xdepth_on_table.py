@@ -1,4 +1,5 @@
 from propagation.slant_depth.xdepth_conversion import XdepthConversion
+# from xdepth_conversion import XdepthConversion
 import numpy as np
 
 
@@ -42,7 +43,9 @@ class XdepthOnTable:
 
 
 if __name__ == "__main__":
-    xconv = XdepthOnTable()
+    xconv = XdepthConversion()
+    xconv.set_theta(30)
+    xconv = XdepthOnTable(xdepth_conversion = xconv, npoints=100)
     
     # nn = 1000000
 
@@ -58,12 +61,14 @@ if __name__ == "__main__":
 
 # np.random.rand()*1e7
 
-    xdepth = np.full(4, np.inf,dtype='float64')
-    dlen = np.full(4 , np.inf,dtype='float64') * 1e9
-    # print(dlen)
+    # xdepth = np.full(4, np.inf,dtype='float64')
+    # dlen = np.full(4 , np.inf,dtype='float64') * 1e9
+    # # print(dlen)
 
-    print(xconv.add_len2x(xdepth, dlen))
-    print(xconv.xdepth_conversion.get_max_xdepth())
+    # print(xconv.add_len2x(xdepth, dlen))
+    # print(xconv.xdepth_conversion.get_max_xdepth())
+    
+    print(xconv.convert_h2x([5e5]))
 
 # print(np.random.rand(5)*1e7)
 

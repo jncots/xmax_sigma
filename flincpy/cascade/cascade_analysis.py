@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from particle_array import ParticleArray
-from xdepth_on_table import XdepthOnTable
-from xdepth_conversion import XdepthConversion
+from data_structs.particle_array import ParticleArray
+from data_structs.pdg_pid_map import PdgLists
+from propagation.slant_depth.xdepth_on_table import XdepthOnTable
+from propagation.slant_depth.xdepth_conversion import XdepthConversion
 from MCEq.geometry.density_profiles import CorsikaAtmosphere
-from cascade_driver import CascadeDriver
+from cascade.cascade_driver import CascadeDriver
 from pympler import asizeof
 import particle
-from pdg_pid_map import PdgLists
 
 
 from copy import copy
