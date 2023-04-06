@@ -1,11 +1,101 @@
 from pathlib import Path
 import json
-import numpy as np 
+import numpy as np
 
 
-def fluka_data():
-    data_file = Path(__file__).parent/"atmop100gev_yld_tab.lis"
 
+def parse_data_file(data_file):
+    """Returns a list of tuples (header, list_of_rows_with_numbers)
+    """
+    
+    prev_block_type = "start"    
+    parsed_data = []
+    
+    with open(data_file) as file:
+        for line in file:
+            line = line.strip()
+            
+            # Determine type of data block
+            if line:
+                if line.startswith("#"):
+                    block_type = "header"
+                else:
+                    block_type = "data"
+            else:
+                block_type = "separator"  
+            
+            # If header starts or continues
+            if block_type == "header":
+                if prev_block_type == "header":
+                    header += f"\n{line}"
+                else:
+                    if prev_block_type == "separator":
+                        parsed_data.append((header, data))
+                    header = line
+                    data = []     
+                
+            # If block with numerical data
+            if block_type == "data":
+                line_record = []
+                for number in line.split():
+                    line_record.append(float(number))
+                data.append(line_record)
+                        
+            prev_block_type = block_type
+        
+        if prev_block_type == "data":
+            parsed_data.append((header, data))
+    
+    return parsed_data
+
+
+def parse_xdepth(header):
+    splitted = header.split()
+    useful_info = header.split()[4]
+    xdepth = float(useful_info.split("-")[1])
+    return xdepth
+    
+
+def fluka_en_data(file_name = "develop_version"):
+    if file_name == "develop_version":
+        data_file = Path(__file__).parent/"new_data"/"atmop100gev_lgyld_tab.lis"
+        # data_file = Path(__file__).parent/"new_data"/"atmop100gev_yld_tab.lis"
+    elif file_name == "current_version":
+        data_file = Path(__file__).parent/"new_data"/"atmop100gev20212_lgyld_tab.lis"
+    else:
+        raise ValueError("This should not happen")
+
+    parsed_data = parse_data_file(data_file)
+    
+    converted_data = []
+    for data_block in parsed_data:
+        xdepth = parse_xdepth(data_block[0])
+        data = np.array(data_block[1])
+        en1 = data[:,0]
+        en2 = data[:,1]
+        flux = data[:,2]
+        error = data[:,3]
+        
+        energy_bins = np.append(en1, en2[-1])
+        
+        delta_en = energy_bins[1:] - energy_bins[:-1]
+        flux1 = flux * delta_en
+        error1 = error * delta_en
+        converted_data.append((energy_bins, flux1, error1, xdepth))
+    
+    return converted_data
+
+
+def fluka_data(file_name = "old"):
+    
+    if file_name == "old":
+        data_file = Path(__file__).parent/"atmop100gev_yld_tab.lis"
+    elif file_name == "devel":
+        data_file = Path(__file__).parent/"new_data"/"atmop100gev_yld_tab.lis"
+    elif file_name == "current":
+        data_file = Path(__file__).parent/"new_data"/"atmop100gev20212_yld_tab.lis"
+    else:
+        raise ValueError("This should not happen")
 
     new_block = False
 
@@ -57,18 +147,25 @@ def fluka_data():
             val.append(line_vals[2])
             err.append(line_vals[3])
         
+        correction = 1
         if key.startswith("E1"):
             erange = [1, 1.3]
+            if file_name == "old":
+                correction = 0.3**2
         elif key.startswith("E2"):
             erange = [2, 2.5]
+            if file_name == "old":
+                correction = 0.5**2
         elif key.startswith("E3"):
             erange = [4, 5]
+            if file_name == "old":
+                correction = 1
         else:
             raise ValueError("Should not happen")    
                   
         #1-1.3, 2-2.5, 4-5 GeV,
         data_dict1[key] = (item[0], np.array(om1), np.array(om2), 
-                           np.array(val), np.array(err), np.array(erange, dtype=np.float64))
+                           np.array(val)*correction, np.array(err), np.array(erange, dtype=np.float64))
     
     return data_dict1
    
@@ -84,6 +181,7 @@ def fluka_dists():
         
         # Omega bins
         omega_bins = np.append(data1[1], data1[2][-1])
+        omega_bins = 2 * np.pi * (1 - np.cos(omega_bins))
         d_omega = omega_bins[1:] - omega_bins[:-1]
         
         # Energy bins
@@ -93,7 +191,9 @@ def fluka_dists():
         # Distribution
         dN_dOmdE = data1[3]
         
-        hist_dOmdE = (dN_dOmdE * d_omega) * d_energy[0]
+        # hist_dOmdE = (dN_dOmdE * d_omega) * d_energy[0]
+        
+        hist_dOmdE = dN_dOmdE
         
         fxdepth = float(xdepth)
         ang_dist.setdefault(xdepth, []).append(
@@ -141,8 +241,7 @@ def merge_bins(hist, bins, ntimes = 1):
         
     
 
-def fluka_original_dists():
-    data_dist = fluka_data()
+def fluka_original_dists(data_dist = fluka_data(), binmerging_level = 3):
     ang_dist = dict()
     en_dist = dict()
     
@@ -151,7 +250,8 @@ def fluka_original_dists():
         data1 = data_dist[key]
         
         # Omega bins
-        omega_bins = np.append(data1[1], data1[2][-1])
+        theta_bins = np.append(data1[1], data1[2][-1])
+        omega_bins = 2 * np.pi * (1 - np.cos(theta_bins))
         d_omega = omega_bins[1:] - omega_bins[:-1]
         
         # Energy bins
@@ -161,12 +261,16 @@ def fluka_original_dists():
         # Distribution
         dN_dOmdE = data1[3]*d_omega
         
-        hist_dOmdE, omega_bins = merge_bins(dN_dOmdE, omega_bins, 3)
-        hist_dOmdE = hist_dOmdE/(omega_bins[1:] - omega_bins[:-1])
+        hist_dOmdE, theta_bins = merge_bins(dN_dOmdE, theta_bins, binmerging_level)
+        # hist_dOmdE = hist_dOmdE/(omega_bins[1:] - omega_bins[:-1])
+        
+        omega_bins = 2 * np.pi * (1 - np.cos(theta_bins))
+        d_omega =  omega_bins[1:] - omega_bins[:-1]
+        # hist_dOmdE = (hist_dOmdE * d_omega) * d_energy[0]
         
         fxdepth = float(xdepth)
         ang_dist.setdefault(xdepth, []).append(
-            (hist_dOmdE, omega_bins, energy_bins, fxdepth))
+            (hist_dOmdE, theta_bins, energy_bins, fxdepth))
         
         en_dist.setdefault(xdepth, []).append(
             (np.sum(hist_dOmdE), energy_bins, fxdepth))

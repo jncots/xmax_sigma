@@ -78,7 +78,13 @@ def corsika_en_theta_2dhist(en_bins, theta_bins):
                 # omega_edges = np.arccos(1 - theta_edges/(2*np.pi))
                 # theta_edges = omega_edges
                 
-                xd_dict.append((hist/num_primaries, en_edges, theta_edges, xdepth))         
+                # if pdg in [-13, 13]:
+                #     print(f"Hist = {hist}")
+                #     print(f"Hist = {np.sqrt(hist)/hist}")
+                #     print(f"Xdepth = {xdepth}, pdg = ${pdg_dict[pdg].latex_name}$")
+                #     # print(f"Hist = {theta_edges}")
+                
+                xd_dict.append((hist/num_primaries, en_edges, theta_edges, xdepth, np.sqrt(hist)/num_primaries))         
             energy_hist[pdg] = (xd_dict, f"${pdg_dict[pdg].latex_name}$")
     return energy_hist
 
@@ -91,9 +97,11 @@ def combined_ang_data(energy_hist, pdgs):
         for ind_energy in range(energy_hist[13][0][ixdepth][1].size - 1):
             
             hist = None
+            hist_error = None
             label = ""
             for pdg in pdgs:    
                 ang_dist = energy_hist[pdg][0][ixdepth][0][ind_energy]
+                ang_dist_error = energy_hist[pdg][0][ixdepth][4][ind_energy]
                 en_bins = energy_hist[pdg][0][ixdepth][1]
                 cur_en_label = f"[{en_bins[ind_energy]}, {en_bins[ind_energy + 1]}]"
                 cur_en = np.array([en_bins[ind_energy], en_bins[ind_energy + 1]])
@@ -101,16 +109,29 @@ def combined_ang_data(energy_hist, pdgs):
                 xdepth = energy_hist[pdg][0][ixdepth][3]
         
                 if hist is None:
-                    hist = energy_hist[pdg][0][ixdepth][0]
+                    hist = ang_dist
                 else:
-                    hist = energy_hist[pdg][0][ixdepth][0] + hist    
-        
+                    hist = ang_dist + hist   
+
+                if hist_error is None:
+                    hist_error = ang_dist_error**2
+                else:
+                    hist_error = ang_dist_error**2 + hist_error   
+                
+                # print(f"pdg = {pdg}, sum = {np.sum(hist)}, size = {hist.size}")
+
+
+                
                 label += f"+{energy_hist[pdg][1]}"
     
                 label_p = f"{label[1:]}"
                 label_x = f"{xdepth}"
 
-            dist_en.append((ang_dist, ang_bins, cur_en_label, label_x, label_p, cur_en))
+            hist_error = np.sqrt(hist_error)
+            # print(f"hist_error = {hist_error/hist}")
+            # print(f"ang_dist_error = {ang_dist_error/ang_dist}")
+
+            dist_en.append((hist, ang_bins, cur_en_label, label_x, label_p, cur_en, hist_error))
         dist_xdepth.append(dist_en)    
     return dist_xdepth
   
