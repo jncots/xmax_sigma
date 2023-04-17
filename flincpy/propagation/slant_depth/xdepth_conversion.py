@@ -76,14 +76,19 @@ class XdepthConversion:
 if __name__ == "__main__":
     xconv = XdepthConversion()
     xconv.set_length_unit("km")
-    xconv.set_theta(30)  
-    print(f"Back and forth conv = {xconv.convert_h2x(xconv.convert_x2h(0))}")
-    print(f"Max height = {xconv.get_max_height()}")
-    print(f"Max depth = {xconv.get_max_xdepth()}")
-    print(f"Xdepth(max_height) = {xconv.convert_h2x(xconv.get_max_height())}")
-    print(f"Height(xdepth = 500) = {xconv.convert_x2h(500)}")
-    print(f"Height(height = 5 km) = {xconv.convert_h2x(5)}")
-    print(xconv.get_delta_xdepth(500, 5.2))
+    xconv.set_theta(0) 
+    
+    heights = [0, 5, 15, 20]
+    for height in heights:
+        print(f"h={height}, X={xconv.convert_h2x(height)}")
+         
+    # print(f"Back and forth conv = {xconv.convert_h2x(xconv.convert_x2h(0))}")
+    # print(f"Max height = {xconv.get_max_height()}")
+    # print(f"Max depth = {xconv.get_max_xdepth()}")
+    # print(f"Xdepth(max_height) = {xconv.convert_h2x(xconv.get_max_height())}")
+    # print(f"Height(xdepth = 500) = {xconv.convert_x2h(500)}")
+    # print(f"Height(height = 5 km) = {xconv.convert_h2x(5)}")
+    # print(xconv.get_delta_xdepth(500, 5.2))
 
 # xconv = XdepthConversion()
 # xconv.set_length_unit("km")

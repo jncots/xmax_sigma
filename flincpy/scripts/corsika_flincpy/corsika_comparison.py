@@ -17,17 +17,38 @@ import h5py
 import numpy as np
 from particle import Particle
 
-h5file = Path("/hetghome/antonpr/xmax_sigma/data_comparison/corsika_leptons.h5")
+# 1       2.00000000E+06       5.69000815E+01
+#           2       1.50000000E+06       1.24139149E+02
+#           3       5.00000000E+05       5.52958799E+02
+#           4       0.00000000E+00       1.03610000E+03
+
+# h=0, X=1036.0992336839001
+# h=5, X=552.9465437966635
+# h=15, X=124.14014337836426
+# h=20, X=56.90063537140265
+
+# h=0, X=1195.9290875457918
+# h=5, X=638.1217239628874
+# h=15, X=143.18394585718303
+# h=20, X=65.61184736576809
+
+
 all_particles_dict = {p.pdgid: p for p in Particle.findall()}
 
-xdepth_list = np.array([143, 638, 1167, 1195], dtype=np.float32)
+xdepth_list = np.array([66, 143, 638, 1196], dtype=np.float32)
 pdg_list = [-12, 12, -13, 13, -14, 14]
 pdg_dict = { pdg: all_particles_dict[pdg] for pdg in pdg_list}
 
-def corsika_hist(en_bins):
+def corsika_hist(en_bins, h5file = "corsika_leptons_trial.h5"):
+    base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
+    h5file = base_dir / h5file
     energy_hist = dict()
     with h5py.File(h5file, "r") as corsika_data:
-        num_primaries = corsika_data["num_primaries"]
+        try:
+            num_primaries = corsika_data["num_primaries"]
+            print(f"{str(h5file.name)}: Number of primaries = {np.array(num_primaries)*1.0:e}")
+        except Exception as ex:
+            num_primaries = 300000     
         for pdg in pdg_dict:
             xd_dict = []
             for i, xdepth in enumerate(xdepth_list):
@@ -57,7 +78,11 @@ def combined_data(energy_hist, pdgs, ixdepth):
     return hist, energy_hist[pdg][0][ixdepth][1], label_p, label_x
 
 
-def corsika_en_theta_2dhist(en_bins, theta_bins):
+def corsika_en_theta_2dhist(en_bins, theta_bins, h5file):
+    
+    base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
+    h5file = base_dir / h5file
+    
     energy_hist = dict()
     with h5py.File(h5file, "r") as corsika_data:
         num_primaries = corsika_data["num_primaries"]
@@ -138,8 +163,16 @@ def combined_ang_data(energy_hist, pdgs):
     
 if __name__ == "__main__":
     import nexusformat.nexus as nx
+    
+    base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
+    h5file = base_dir/"corsika_leptons.h5"
+    
     # #Print a structure of db
-    # f = nx.nxload(h5file)
-    # print(f.tree)
+    f = nx.nxload(h5file)
+    print(f.tree)
+    
+    with h5py.File(h5file, "r") as corsika_data:
+        num_primaries = corsika_data["num_primaries"]
+        print(np.array(num_primaries))
     
         
