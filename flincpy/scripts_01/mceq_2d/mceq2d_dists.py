@@ -44,7 +44,7 @@ class MCEQDist2D():
                  energy,
                  pdg_id,
                  theta_deg,
-                 slant_depth,
+                 slant_depths,
                  #pname_tuples,
                  energy_range = [1e-1, 1e4],
                  interaction_model = "EPOS-LHC", 
@@ -81,19 +81,22 @@ class MCEQDist2D():
 
         self.mceq_run = mceq_run
 
-        if mceq_run.density_model.max_X < slant_depth:
-                    raise ValueError(f"Maximum slant_xdepth = {mceq_run.density_model.max_X}")
+        for slant_depth in slant_depths:
+            if mceq_run.density_model.max_X < slant_depth:
+                        raise ValueError(f"Maximum slant_xdepth = {mceq_run.density_model.max_X}")
 
         #Set the zenith angle
         mceq_run.set_theta_deg(theta_deg)
         mceq_run.set_single_primary_particle(energy, pdg_id = pdg_id)
-        mceq_run.solve(int_grid=[slant_depth])
+        mceq_run.solve(int_grid=slant_depths)
+        
+        self.slant_depths = slant_depths
         
         self.spline_dist = None
         self.default_ebins = None
         self.default_angbins = None
         
-    def set_particles(self, particles):
+    def set_particles(self, particles, idepth):
         # particles = [(-13, 0), (-13, -1), (-13, 1), (13, 0), (13, -1), (13, 1)]
         # part_tuple = [(-14, 0), (14, 0)]
     
@@ -138,15 +141,16 @@ class MCEq2Histogram:
     def __init__(self, mceq_dist_2D, pdg):
         
         self.mceq_run = mceq_dist_2D.mceq_run
+        self.slant_depths = mceq_dist_2D.slant_depths
         
         if abs(pdg) == 13:
             particles = [(-13, 0), (-13, -1), (-13, 1), (13, 0), (13, -1), (13, 1)]
         else:
             particles = [(-pdg, 0), (pdg, 0)]  
         
-        self.spline_dist = None
-        self.default_ebins = None
-        self.default_angbins = None    
+        self.spline_dist = {}
+        self.default_ebins = self.mceq_run.e_bins
+        self.default_angbins = np.deg2rad(np.linspace(0, 90, 91))  
         
         self._set_particles(particles)
         
@@ -158,39 +162,38 @@ class MCEq2Histogram:
     
         # Get results for each particle
         hank_trans_res = []
-        for particle in particles:
+        for particle in tqdm(particles, total = len(particles)):
+            print(f"Inverse hankel transform for {particle} and depths {self.slant_depths}")
             hank_trans_res.append(self.mceq_run.convert_to_theta_space(
                 self.mceq_run.grid_sol, *particle))
-            
-        # Get a grid
+        
+        # Get a grid (for all particles and slant depths)
         angle_grid = hank_trans_res[0][2]
         energy_grid = self.mceq_run.e_grid
         
-        # Sum distributions for particles
-        egrid_len = len(energy_grid)
-        ang_dists = [None for i in range(egrid_len)]
-        for i_energy in range(egrid_len):
-            for res in hank_trans_res:
-                if ang_dists[i_energy] is None:
-                    ang_dists[i_energy] = res[3][0][i_energy]
-                else:
-                    ang_dists[i_energy] += res[3][0][i_energy]
-        
-        # Convert to numpy array           
-        # ang_dists_dt is dN/dE (t*dt), where t is angle.
-        ang_dists = np.array(ang_dists)
-        # We multiply it to angle to get dN/dEdt        
-        ang_dists_t = ang_dists*angle_grid[np.newaxis, :] 
-        
-        # Get spline of the function
-        self.spline_dist = get_spline_2Dfunction(energy_grid, angle_grid, ang_dists_t)
-        
-        self.default_ebins = self.mceq_run.e_bins
-        self.default_angbins = np.deg2rad(np.linspace(0, 90, 91))
+        for idepth, slant_depth in enumerate(self.slant_depths):
+            # Sum distributions for particles
+            egrid_len = len(energy_grid)
+            ang_dists = [None for i in range(egrid_len)]
+            for i_energy in range(egrid_len):
+                for res in hank_trans_res:
+                    if ang_dists[i_energy] is None:
+                        ang_dists[i_energy] = res[3][idepth][i_energy]
+                    else:
+                        ang_dists[i_energy] += res[3][idepth][i_energy]
+            
+            # Convert to numpy array           
+            # ang_dists_dt is dN/dE (t*dt), where t is angle.
+            ang_dists = np.array(ang_dists)
+            # We multiply it to angle to get dN/dEdt        
+            ang_dists_t = ang_dists*angle_grid[np.newaxis, :] 
+            
+            # Get spline of the function
+            self.spline_dist[slant_depth] = get_spline_2Dfunction(energy_grid, angle_grid, ang_dists_t)
         
        
-    def histogram(self, energy_bins, angle_bins):   
-        result =  get_histogram(energy_bins, angle_bins, self.spline_dist)
+    def histogram(self, energy_bins, angle_bins, slant_depth):   
+        result =  get_histogram(energy_bins, angle_bins, self.spline_dist[slant_depth])
         hist_dict = {}
         hist_dict["en_bins"] = result[0]
         hist_dict["ang_bins"] = result[1]
@@ -202,6 +205,7 @@ class MCEq2Histogram:
 class CalcMCEqHists:
     def __init__(self, mceq_sol, particles = [12, 13, 14]):
         self.particles = particles
+        self.slant_depths = mceq_sol.slant_depths
         self.mceq_dists = {}
 
         for particle in tqdm(particles, total=len(particles)):
@@ -214,7 +218,15 @@ class CalcMCEqHists:
     def histograms(self, energy_bins, angle_bins):
         mceq_hists = {}
         for particle in tqdm(self.particles, total=len(self.particles)):
-            mceq_hists[particle] = self.mceq_dists[particle].histogram(energy_bins, angle_bins)
+            mceq_hist_depth = {}
+            for slant_depth in self.slant_depths:
+                print(f"Particle {particle}, slant depth = {slant_depth}")
+                mceq_hist_depth[slant_depth] = (self.mceq_dists[particle].histogram(energy_bins, 
+                                                                                    angle_bins,
+                                                                                    slant_depth))
+                
+                
+            mceq_hists[particle] = mceq_hist_depth
             
             
         return mceq_hists            
