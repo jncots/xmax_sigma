@@ -35,7 +35,7 @@ from particle import Particle
 
 all_particles_dict = {p.pdgid: p for p in Particle.findall()}
 
-xdepth_list = np.array([66, 143, 638, 1196], dtype=np.float32)
+xdepth_list = np.array([65, 143, 638, 1195], dtype=np.float32)
 pdg_list = [-12, 12, -13, 13, -14, 14]
 pdg_dict = { pdg: all_particles_dict[pdg] for pdg in pdg_list}
 
@@ -87,10 +87,13 @@ def corsika_en_theta_2dhist(en_bins, theta_bins, h5file):
     with h5py.File(h5file, "r") as corsika_data:
         num_primaries = corsika_data["num_primaries"]
         for pdg in pdg_dict:
+            print(f"pdg = {pdg}")
+            ix = [int(key) for key in corsika_data[str(pdg)].keys()]
             xd_dict = []
             for i, xdepth in enumerate(xdepth_list):
-                mc_energy = np.array(corsika_data[str(pdg)][str(i+1)]["energy [GeV]"])
-                mc_theta = np.array(corsika_data[str(pdg)][str(i+1)]["theta [rad]"])
+                mc_energy = np.array(corsika_data[str(pdg)][str(ix[i])]["energy [GeV]"])
+                mc_theta = np.array(corsika_data[str(pdg)][str(ix[i])]["theta [rad]"])
+                print(f"xdepth={xdepth}, number={len(mc_energy)*1e0:.4e}")
                 
                 # If Omega is used for binning
                 # mc_omega = 2*np.pi*(1 - np.cos(mc_theta))
@@ -165,14 +168,14 @@ if __name__ == "__main__":
     import nexusformat.nexus as nx
     
     base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
-    h5file = base_dir/"corsika_leptons.h5"
-    
+    # h5file = base_dir/"corsika_leptons.h5"
+    h5file = base_dir/"02_corsika_data/corsika_leptons_trial.h5"
     # #Print a structure of db
     f = nx.nxload(h5file)
     print(f.tree)
     
-    with h5py.File(h5file, "r") as corsika_data:
-        num_primaries = corsika_data["num_primaries"]
-        print(np.array(num_primaries))
+    # with h5py.File(h5file, "r") as corsika_data:
+    #     num_primaries = corsika_data["num_primaries"]
+    #     print(np.array(num_primaries))
     
         

@@ -99,3 +99,34 @@ class MCEQDistributions():
                 
             self.flux[group_name] = self.flux[group_name] * self.e_widths
     
+    
+    
+if __name__ == "__main__":
+    
+    
+    config.enable_2D = True
+    config.mceq_db_fname = 'mceq_db_rare_decays_URQMD_lext_2D.h5'
+    config.enable_default_tracking = False
+    config.enable_em = False
+    config.enable_em_ion = False
+    config.hybrid_crossover = 0.1
+    # config.muon_energy_loss = True
+    config.enable_energy_loss = True
+    config.enable_cont_rad_loss = True
+    config.enable_energy_loss = True
+    config.muon_helicity_dependence = True
+    config.density_model = ("CORSIKA", ("USStd", None))
+
+    config.adv_set['force_resonance'] = [421, 431, 411, 310]
+    config.adv_set['disabled_particles'] = [22, 111, 16, 11]
+    
+    mceq_run = MCEqRun(
+            #provide the string of the interaction model
+            interaction_model=interaction_model,
+            #primary cosmic ray flux model
+            primary_model = (pm.HillasGaisser2012, "H3a"),
+            # Zenith angle in degrees. 0=vertical, 90=horizontal
+            theta_deg=theta_deg,
+            density_model = density_model
+        )
+        
