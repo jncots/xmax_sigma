@@ -83,7 +83,8 @@ if __name__ == "__main__":
         print(f"h={height}, X={xconv.convert_h2x(height)} g/cm2")
     
     print("------\n")
-    xdepths = [143, 647, 1033]    
+    xdepths = [143, 647, 1033] 
+    xdepths = [1.23979442E+02, 5.60648882E+02, 8.94994432E+02]   
     for xdepth in xdepths:
         print(f"h={xdepth}, X={xconv.convert_x2h(xdepth)} km")    
          

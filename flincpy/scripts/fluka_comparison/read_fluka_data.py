@@ -80,5 +80,50 @@ def fluka_histogram(label, bin_merge_level=0):
     return data_dict
 
 
+def fluka_files_en(label):
+    from pathlib import Path
+
+    base_dir = Path("/hetghome/antonpr/xmax_sigma/flincpy/scripts")
+    data_dir = base_dir / "fluka_comparison" / "new_data"
+    if label == "develop":
+        data_file = data_dir / "atmop100gev_lgyld_tab.lis"
+    elif label == "current":
+        data_file = data_dir / "atmop100gev20212_lgyld_tab.lis"
+    else:
+        raise ValueError(
+            f"No such data: {label}. Possible values: 'develop' or 'current'"
+        )
+
+    return data_file
+
+
+def fluka_histogram_en(label, bin_merge_level = 0):
+
+    data_file = fluka_files_en(label)
+    block_file = BlockDataFile(data_file)
+    
+    xdepth_labels = ["143", "647", "1033"]
+    hist_data = {}
+    for i in range(block_file.num_blocks()):
+        
+        en1 = block_file.block_data(i, col = 0)
+        en2 = block_file.block_data(i, col = 1)
+        
+        energy_bins = np.concatenate([en1, [en2[-1]]])
+        flux = block_file.block_data(i, col=2)
+        error = block_file.block_data(i, col=3)
+        
+        energy_width = energy_bins[1:] - energy_bins[:-1]
+        
+        hist_flux, new_energy_bins = merge_bins(flux * energy_width, energy_bins, bin_merge_level)
+        hist_error, _ = merge_bins(error * energy_width, energy_bins, bin_merge_level)
+        
+        
+        hist_data[i] = [new_energy_bins, hist_flux, hist_error, xdepth_labels[i]]
+
+    return hist_data
+
+
 if __name__ == "__main__":
-    res = fluka_histogram("develop", bin_merge_level=4)
+    # res = fluka_histogram("develop", bin_merge_level=4)
+    fluka_histogram_en("current")

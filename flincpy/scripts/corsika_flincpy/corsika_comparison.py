@@ -35,31 +35,30 @@ from particle import Particle
 
 all_particles_dict = {p.pdgid: p for p in Particle.findall()}
 
-xdepth_list = np.array([65, 143, 638, 1195], dtype=np.float32)
+xdepth_list = np.array([143, 647, 1033], dtype=np.float32)
 pdg_list = [-12, 12, -13, 13, -14, 14]
 pdg_dict = { pdg: all_particles_dict[pdg] for pdg in pdg_list}
 
-def corsika_hist(en_bins, h5file = "corsika_leptons_trial.h5"):
+def corsika_hist_en(en_bins, h5file = "corsika_leptons_trial.h5"):
     base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
     h5file = base_dir / h5file
     energy_hist = dict()
     with h5py.File(h5file, "r") as corsika_data:
-        try:
-            num_primaries = corsika_data["num_primaries"]
-            print(f"{str(h5file.name)}: Number of primaries = {np.array(num_primaries)*1.0:e}")
-        except Exception as ex:
-            num_primaries = 300000     
+        
+        num_primaries = corsika_data["num_primaries"]
+        print(f"{str(h5file.name)}: Number of primaries = {np.array(num_primaries)*1.0:e}")
+        
         for pdg in pdg_dict:
             xd_dict = []
             for i, xdepth in enumerate(xdepth_list):
-                mcdata = np.array(corsika_data[str(pdg)][str(i+1)]["energy [GeV]"])
+                mcdata = np.array(corsika_data[str(pdg)][str(i)]["energy [GeV]"])
                 hist, bin_edges = np.histogram(mcdata, bins = en_bins)
                 xd_dict.append((hist/num_primaries, bin_edges, xdepth))         
             energy_hist[pdg] = (xd_dict, f"${pdg_dict[pdg].latex_name}$")
     return energy_hist
 
 
-def combined_data(energy_hist, pdgs, ixdepth):
+def combined_data_en(energy_hist, pdgs, ixdepth):
     
     hist = None
     label = ""
@@ -119,7 +118,7 @@ def corsika_en_theta_2dhist(en_bins, theta_bins, h5file):
 
 def combined_ang_data(energy_hist, pdgs):    
     dist_xdepth = []
-    for ixdepth in range(4):
+    for ixdepth in range(3):
         
         dist_en = []
         for ind_energy in range(energy_hist[13][0][ixdepth][1].size - 1):
@@ -169,7 +168,7 @@ if __name__ == "__main__":
     
     base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
     # h5file = base_dir/"corsika_leptons.h5"
-    h5file = base_dir/"02_corsika_data/corsika_leptons_trial.h5"
+    h5file = base_dir/"05_corsika_data/corsika_05.h5"
     # #Print a structure of db
     f = nx.nxload(h5file)
     print(f.tree)
