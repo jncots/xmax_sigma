@@ -80,7 +80,8 @@ class MCEqIHankel:
             theta_distr = interp1d(self.ht_obj.r, 
                                      inverse_hankel_transfs, 
                                      axis = 1,
-                                     fill_value="extrapolate")(theta_grid)
+                                     fill_value="extrapolate",
+                                     kind = "cubic")(theta_grid)
             return theta_grid, theta_distr
         
     def _subdivide_for_particles(self, pgd_hels, theta_distr, hankel_amps):
@@ -125,7 +126,10 @@ class MCEqIHankel:
                                            hankel_transf, 
                                            axis = 1, 
                                            kind = "cubic")(k_grid)
-        
+        # Note! kind = "linear" gives a larger flux at small angles
+        # than kind = "cubic". It should be investigated further.
+        # Number points in k_grid influence flux at large angles
+        # Smaller number of points gives lower flux at large angles
         
     
         # Get inverse transformation (theta space) 

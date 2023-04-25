@@ -6,6 +6,7 @@ from tqdm import tqdm
 import numpy as np
 from scipy.interpolate import RectBivariateSpline
 from scipy.integrate import nquad
+from mceq2d_ihank import MCEqIHankel
 
 
 def get_spline_2Dfunction(energy_grid, angle_grid, dist_function):
@@ -138,8 +139,9 @@ class MCEQDist2D():
                 
 
 class MCEq2Histogram:
-    def __init__(self, mceq_dist_2D, pdg):
+    def __init__(self, mceq_hankel, mceq_dist_2D, pdg):
         
+        self.mceq_hankel = mceq_hankel
         self.mceq_run = mceq_dist_2D.mceq_run
         self.slant_depths = mceq_dist_2D.slant_depths
         
@@ -162,29 +164,33 @@ class MCEq2Histogram:
     
         # Get results for each particle
         hank_trans_res = []
-        for particle in tqdm(particles, total = len(particles)):
-            print(f"Inverse hankel transform for {particle} and depths {self.slant_depths}")
-            hank_trans_res.append(self.mceq_run.convert_to_theta_space(
-                self.mceq_run.grid_sol, *particle))
         
+        (k_grid, 
+        hankel_amp_part, 
+        theta_grid, 
+        theta_distr_part) = self.mceq_hankel.ihankel(particles, 
+                                                     theta_grid = np.deg2rad(
+                                                         np.linspace(0, 90, 600)))
+        
+                
         # Get a grid (for all particles and slant depths)
-        angle_grid = hank_trans_res[0][2]
+        angle_grid = theta_grid
         energy_grid = self.mceq_run.e_grid
         
         for idepth, slant_depth in enumerate(self.slant_depths):
             # Sum distributions for particles
-            egrid_len = len(energy_grid)
-            ang_dists = [None for i in range(egrid_len)]
-            for i_energy in range(egrid_len):
-                for res in hank_trans_res:
-                    if ang_dists[i_energy] is None:
-                        ang_dists[i_energy] = res[3][idepth][i_energy]
-                    else:
-                        ang_dists[i_energy] += res[3][idepth][i_energy]
             
+            theta_distr_sum = None
+            for particle_index in range(len(theta_distr_part)):
+                if theta_distr_sum is None:
+                    theta_distr_sum = theta_distr_part[particle_index][idepth, :, :]
+                else:
+                    theta_distr_sum += theta_distr_part[particle_index][idepth, :, :]
+                    
+                                
             # Convert to numpy array           
             # ang_dists_dt is dN/dE (t*dt), where t is angle.
-            ang_dists = np.array(ang_dists)
+            ang_dists = theta_distr_sum.T
             # We multiply it to angle to get dN/dEdt        
             ang_dists_t = ang_dists*angle_grid[np.newaxis, :] 
             
@@ -207,9 +213,13 @@ class CalcMCEqHists:
         self.particles = particles
         self.slant_depths = mceq_sol.slant_depths
         self.mceq_dists = {}
+        
+        #print("Calculating matrix for Hankel transformation...")
+        mceq_hankel = MCEqIHankel(mceq_sol.mceq_run)
+        #print("Finished")
 
-        for particle in tqdm(particles, total=len(particles)):
-            self.mceq_dists[particle] = MCEq2Histogram(mceq_sol, particle)
+        for particle in particles:
+            self.mceq_dists[particle] = MCEq2Histogram(mceq_hankel, mceq_sol, particle)
             
             
         self.default_ebins = mceq_sol.mceq_run.e_bins
