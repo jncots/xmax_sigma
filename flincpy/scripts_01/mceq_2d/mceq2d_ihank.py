@@ -2,7 +2,7 @@ import mceq_config as config
 from pyhank import HankelTransform
 
 import numpy as np
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, splrep
 
 
 class MCEqIHankel:
@@ -81,7 +81,8 @@ class MCEqIHankel:
                                      inverse_hankel_transfs, 
                                      axis = 1,
                                      fill_value="extrapolate",
-                                     kind = "cubic")(theta_grid)
+                                     kind = "cubic",
+                                     )(theta_grid)
             return theta_grid, theta_distr
         
     def _subdivide_for_particles(self, pgd_hels, theta_distr, hankel_amps):
@@ -125,7 +126,9 @@ class MCEqIHankel:
         oversampled_hankel_amps = interp1d(config.k_grid, 
                                            hankel_transf, 
                                            axis = 1, 
-                                           kind = "cubic")(k_grid)
+                                           kind = "cubic",
+                                           )(k_grid)
+        
         # Note! kind = "linear" gives a larger flux at small angles
         # than kind = "cubic". It should be investigated further.
         # Number points in k_grid influence flux at large angles

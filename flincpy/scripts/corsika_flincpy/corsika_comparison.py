@@ -35,7 +35,8 @@ from particle import Particle
 
 all_particles_dict = {p.pdgid: p for p in Particle.findall()}
 
-xdepth_list = np.array([143, 647, 1033], dtype=np.float32)
+# xdepth_list = np.array([124, 552, 1036], dtype=np.float32)
+xdepth_list = np.array([1000, 5000, 10000], dtype=np.float32)
 pdg_list = [-12, 12, -13, 13, -14, 14]
 pdg_dict = { pdg: all_particles_dict[pdg] for pdg in pdg_list}
 
@@ -51,6 +52,8 @@ def corsika_hist_en(en_bins, h5file = "corsika_leptons_trial.h5"):
         for pdg in pdg_dict:
             xd_dict = []
             for i, xdepth in enumerate(xdepth_list):
+                # rrr = np.array(corsika_data[str(pdg)][str(i)]["energy [GeV]"])
+                # print(f"res = {rrr}")
                 mcdata = np.array(corsika_data[str(pdg)][str(i)]["energy [GeV]"])
                 hist, bin_edges = np.histogram(mcdata, bins = en_bins)
                 xd_dict.append((hist/num_primaries, bin_edges, xdepth))         
@@ -168,7 +171,7 @@ if __name__ == "__main__":
     
     base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
     # h5file = base_dir/"corsika_leptons.h5"
-    h5file = base_dir/"05_corsika_data/corsika_05.h5"
+    h5file = base_dir/"11_corsika_data/muon_run_61.h5"
     # #Print a structure of db
     f = nx.nxload(h5file)
     print(f.tree)

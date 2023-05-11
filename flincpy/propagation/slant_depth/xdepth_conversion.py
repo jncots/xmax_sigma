@@ -76,15 +76,17 @@ class XdepthConversion:
 if __name__ == "__main__":
     xconv = XdepthConversion()
     xconv.set_length_unit("km")
-    xconv.set_theta(0) 
+    xconv.set_theta(30) 
 
-    heights = [0, 5, 15, 20]
+    # heights = [0, 5, 15, 20]
+    heights = [0.025232939039804742, 3.808506428696458, 14.096117926440979]
     for height in heights:
         print(f"h={height}, X={xconv.convert_h2x(height)} g/cm2")
     
     print("------\n")
     xdepths = [143, 647, 1033] 
-    xdepths = [1.23979442E+02, 5.60648882E+02, 8.94994432E+02]   
+    
+    # xdepths = [1.23979442E+02, 5.60648882E+02, 8.94994432E+02]    
     for xdepth in xdepths:
         print(f"h={xdepth}, X={xconv.convert_x2h(xdepth)} km")    
          

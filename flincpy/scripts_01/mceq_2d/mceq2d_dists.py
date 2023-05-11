@@ -195,11 +195,11 @@ class MCEq2Histogram:
             ang_dists_t = ang_dists*angle_grid[np.newaxis, :] 
             
             # Get spline of the function
-            self.spline_dist[slant_depth] = get_spline_2Dfunction(energy_grid, angle_grid, ang_dists_t)
+            self.spline_dist[idepth] = get_spline_2Dfunction(energy_grid, angle_grid, ang_dists_t)
         
        
-    def histogram(self, energy_bins, angle_bins, slant_depth):   
-        result =  get_histogram(energy_bins, angle_bins, self.spline_dist[slant_depth])
+    def histogram(self, energy_bins, angle_bins, idepth):   
+        result =  get_histogram(energy_bins, angle_bins, self.spline_dist[idepth])
         hist_dict = {}
         hist_dict["en_bins"] = result[0]
         hist_dict["ang_bins"] = result[1]
@@ -229,11 +229,11 @@ class CalcMCEqHists:
         mceq_hists = {}
         for particle in tqdm(self.particles, total=len(self.particles)):
             mceq_hist_depth = {}
-            for slant_depth in self.slant_depths:
+            for idepth, slant_depth in enumerate(self.slant_depths):
                 print(f"Particle {particle}, slant depth = {slant_depth}")
-                mceq_hist_depth[slant_depth] = (self.mceq_dists[particle].histogram(energy_bins, 
+                mceq_hist_depth[idepth] = (self.mceq_dists[particle].histogram(energy_bins, 
                                                                                     angle_bins,
-                                                                                    slant_depth))
+                                                                                    idepth))
                 
                 
             mceq_hists[particle] = mceq_hist_depth
