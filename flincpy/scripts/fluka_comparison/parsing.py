@@ -85,16 +85,18 @@ class BlockDataFile:
 if __name__ == "__main__":
     
     from pathlib import Path
-    
     base_dir = Path("/hetghome/antonpr/xmax_sigma/flincpy/scripts")
-    data_dir = base_dir / "fluka_comparison" / "new_data"
-    
+    data_dir = base_dir / "fluka_comparison" / "alfredo_muons"
     # data_file = data_dir / "atmop100gev_yld_tab.lis"
-    data_file = data_dir / "atmop100gev_lgyld_tab.lis"
+    data_file = data_dir / "mutest_anueyld_tab.lis"
     
     block_file = BlockDataFile(data_file)
     
     print(block_file.num_blocks())
+    for i in range(block_file.num_blocks()):
+        print("\n--------")
+        print(block_file.block_header(i))
+    
     print(block_file.block_header(2))
     print(block_file.block_shape(2))
     print(block_file.block_data(2, col = 2)[0:5])

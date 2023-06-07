@@ -48,6 +48,11 @@ class NormalizedSpectrum:
         return np.where((ekin_grid < self.ekin_min) | (ekin_grid > self.ekin_max), 
                                                        0, result)
         
+    def dN_dekin_mass0(self, ekin_grid): 
+        result =  self.sp_norm *(ekin_grid)**(-self.spectral_index)
+        return np.where((ekin_grid < self.ekin_min) | (ekin_grid > self.ekin_max), 
+                                                       0, result)    
+        
     def dN_detot(self, etot_grid):
         result =  self.sp_norm *etot_grid**(-self.spectral_index)
         return np.where((etot_grid < self.etot_min) | (etot_grid > self.etot_max), 

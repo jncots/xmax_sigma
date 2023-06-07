@@ -76,7 +76,7 @@ class XdepthConversion:
 if __name__ == "__main__":
     xconv = XdepthConversion()
     xconv.set_length_unit("km")
-    xconv.set_theta(30) 
+    xconv.set_theta(0) 
 
     # heights = [0, 5, 15, 20]
     heights = [0.025232939039804742, 3.808506428696458, 14.096117926440979]
@@ -84,12 +84,21 @@ if __name__ == "__main__":
         print(f"h={height}, X={xconv.convert_h2x(height)} g/cm2")
     
     print("------\n")
-    xdepths = [143, 647, 1033] 
+    # xdepths = [143, 647, 1033]
     
+    # xdepths = [1, 10, 50, 100, 300, 400, 500, 600, 650, 700, 800, 900, 1000, 1033]  
+    xdepths = [900, 901, 910, 950, 1000, 1300, 1700, 2000, 2065] 
     # xdepths = [1.23979442E+02, 5.60648882E+02, 8.94994432E+02]    
     for xdepth in xdepths:
         print(f"h={xdepth}, X={xconv.convert_x2h(xdepth)} km")    
-         
+    
+    print(f"X_max = {xconv.get_max_xdepth()}")
+    
+    
+    # xconv.set_theta(0)
+    # print(xconv.convert_h2x(6.475494041409048))
+    # print(xconv.convert_x2h(452.7421530912818))
+    
     # print(f"Back and forth conv = {xconv.convert_h2x(xconv.convert_x2h(0))}")
     # print(f"Max height = {xconv.get_max_height()}")
     # print(f"Max depth = {xconv.get_max_xdepth()}")

@@ -36,7 +36,12 @@ from particle import Particle
 all_particles_dict = {p.pdgid: p for p in Particle.findall()}
 
 # xdepth_list = np.array([124, 552, 1036], dtype=np.float32)
-xdepth_list = np.array([1000, 5000, 10000], dtype=np.float32)
+# xdepth_list = np.array([1, 10, 100, 300, 700, 
+#                                1000, 3000, 5000, 7000, 10000], dtype=np.float32)
+# xdepth_list = np.array([910, 950, 1000, 1033], dtype=np.float32)
+
+# xdepth_list = np.array([10, 50, 100, 133], dtype=np.float32)
+xdepth_list = np.array([1, 10, 50, 100, 300, 700, 1000, 1065], dtype=np.float32)
 pdg_list = [-12, 12, -13, 13, -14, 14]
 pdg_dict = { pdg: all_particles_dict[pdg] for pdg in pdg_list}
 
@@ -57,7 +62,7 @@ def corsika_hist_en(en_bins, h5file = "corsika_leptons_trial.h5"):
                 mcdata = np.array(corsika_data[str(pdg)][str(i)]["energy [GeV]"])
                 hist, bin_edges = np.histogram(mcdata, bins = en_bins)
                 num_tot = np.sum(hist)
-                xd_dict.append((hist, bin_edges, xdepth, num_primaries, num_tot))        
+                xd_dict.append((hist, bin_edges, xdepth, np.array(num_primaries)*1.0, num_tot))        
             energy_hist[pdg] = (xd_dict, f"${pdg_dict[pdg].latex_name}$")
     return energy_hist
 
@@ -78,8 +83,7 @@ def combined_data_en(energy_hist, pdgs, ixdepth):
     label_p = f"{label[1:]}"
     label_x = f"X={energy_hist[pdg][0][ixdepth][2]}"
     
-    return (hist/energy_hist[pdg][0][ixdepth][3], 
-            energy_hist[pdg][0][ixdepth][1], 
+    return (hist, energy_hist[pdg][0][ixdepth][1], 
             label_p, label_x, 
             energy_hist[pdg][0][ixdepth][3], # num_primaries
             )
