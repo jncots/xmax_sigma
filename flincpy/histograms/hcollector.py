@@ -12,14 +12,21 @@ class HistogramCollector:
         self.energy_bins =  self.mceq_run.e_bins
         self.energy_grid =  self.mceq_run.e_grid
         self.energy_widths =  self.mceq_run.e_widths
+        self._endist_matrix()
         
         self.n_energy_grid = len(self.energy_bins) - 1
         self.n_sdepth_grid = len(self.sdepth_bins) - 1
         self.n_particles = mceq_run.pman.n_cparticles
         
-        self.shower_dist = np.zeros(
+        self.shower_hist = np.zeros(
                 [self.n_sdepth_grid, self.n_particles*self.n_energy_grid], 
                 dtype=np.int64)
+        
+        self.shower_dist = np.zeros(
+               [self.n_sdepth_grid, 
+                self.n_particles,
+                self.n_energy_grid], 
+                dtype=np.float64)
     
     def _sdepth_bins(self, sdepth_start = 0, sdepth_end = 1095):
         self.mceq_run._calculate_integration_path(int_grid=None, grid_var="X")
@@ -94,7 +101,7 @@ class HistogramCollector:
         """
         valid_batch = self._filter_valid(batch)
         self._indices_for_addition(valid_batch)
-        np.add.at(self.shower_dist, (self.sdepth_idx, self.en_part_idx), 1)
+        np.add.at(self.shower_hist, (self.sdepth_idx, self.en_part_idx), 1)
         
         
     def _endist_matrix(self):
@@ -125,26 +132,46 @@ class HistogramCollector:
         shift_idx[-1] = -2
         self.shift_idx = shift_idx
         
-    def _add_barch_to_hist(self):
+    def add_batch_to_dist(self, batch, nruns=None):
+        valid_batch = self._filter_valid(batch)
+        self._indices_for_addition(valid_batch)
+        
+        batch_dist = np.zeros(
+               [self.n_sdepth_grid, 
+                self.n_particles,
+                self.n_energy_grid], 
+                dtype=np.float64)
+        
         for i in range(len(self.energy_grid)):
             pidx = np.where(self.energy_idx == i)[0]
-            vx = self.batch_energy[pidx]
-            rightp = np.vstack([vx**0, vx, vx**2])
+            en = self.batch_energy[pidx]
+            evec = np.vstack([en**0, en, en**2])
+            weights = np.matmul(self.emats[i], evec)
             
             for j in range(3):
-                np.add.at(sss_array, 
+                np.add.at(batch_dist, 
                           (self.sdepth_idx[pidx], 
                             self.mceq_idx[pidx], 
-                            self.energy_idx[pidx] 
-                            + j + self.shift_idx[i]), 
-                    np.matmul(self.emats[i], rightp))
-                    
+                            self.energy_idx[pidx] + j + self.shift_idx[i]), 
+                    weights[j, :])
             
+        if isinstance(nruns, int) and nruns > 0:
+            self.shower_dist += batch_dist/nruns
+        else:
+            self.shower_dist += batch_dist
+                  
+    def get_shower_dist(self):
+        return self.shower_dist
+    
+    def get_state_vecs(self):
+        shape = self.shower_dist.shape
+        return self.shower_dist.reshape(shape[0], shape[1]*shape[2])
+                
         
-    def get_shower_dist(self, pdg = None):
+    def get_shower_hist(self, pdg = None):
         
         if pdg is None:
-            return self.shower_dist
+            return self.shower_hist
         else:
             # Return only part of a histogram 
             # for pdgs in `pdg` list
@@ -166,7 +193,7 @@ class HistogramCollector:
                 
             
             en_idx = np.r_[tuple(slices)]            
-            return (self.shower_dist[:, en_idx], # histogram
+            return (self.shower_hist[:, en_idx], # histogram
                     valid_pdg,                   # list of valid pdgs
                     valid_mceq_idx,              # list of valid mceq particle indicies
                     post_slices)                 # respective slices in a new histogram
