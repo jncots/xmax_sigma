@@ -1,0 +1,176 @@
+from data_structs.pdg_pid_map import PdgPidMap1, pdg2mceq_idx_map
+import numpy as np
+
+class HistogramCollector:
+    def __init__(self, mceq_run):
+        self.mceq_run = mceq_run
+        self.pdg2idx_mapper = PdgPidMap1(pdg2mceq_idx_map(self.mceq_run))
+        (self.sdepth_grid, 
+         self.sdepth_bins, 
+         self.sdepth_widths) = self._sdepth_bins()
+        
+        self.energy_bins =  self.mceq_run.e_bins
+        self.energy_grid =  self.mceq_run.e_grid
+        self.energy_widths =  self.mceq_run.e_widths
+        
+        self.n_energy_grid = len(self.energy_bins) - 1
+        self.n_sdepth_grid = len(self.sdepth_bins) - 1
+        self.n_particles = mceq_run.pman.n_cparticles
+        
+        self.shower_dist = np.zeros(
+                [self.n_sdepth_grid, self.n_particles*self.n_energy_grid], 
+                dtype=np.int64)
+    
+    def _sdepth_bins(self, sdepth_start = 0, sdepth_end = 1095):
+        self.mceq_run._calculate_integration_path(int_grid=None, grid_var="X")
+        
+        sdepth_grid = np.cumsum(self.mceq_run.integration_path[1])
+        sdepth_bins = (sdepth_grid[:-1] + sdepth_grid[1:])/2
+        
+        sdepth_bins = np.insert(sdepth_bins, 0, sdepth_start)
+        sdepth_bins = np.append(sdepth_bins, sdepth_end)
+        sdepth_widths = sdepth_bins[1:] - sdepth_bins[:-1]
+        return sdepth_grid, sdepth_bins, sdepth_widths
+    
+    def _filter_valid(self, batch):
+        mceq_idx = self.pdg2idx_mapper.get_pids(batch.pid)
+        
+        # Filter particles with pdgs present in mceq
+        valid_mceq_batch = batch[np.where(mceq_idx != self.pdg2idx_mapper.none_value)[0]]
+        
+        # Filter particles with sdepth inside sdepth_bins
+        sdepth_idx = np.digitize(valid_mceq_batch.xdepth, 
+                                 self.sdepth_bins, right=True)
+
+        valid_sdepth_batch_idx = np.where((sdepth_idx > 0) &
+                                          (sdepth_idx < len(self.sdepth_bins)))[0]
+            
+        valid_sdepth_batch = valid_mceq_batch[valid_sdepth_batch_idx]
+        
+        # Filter particles with energy inside energy_bins
+        energy_idx = np.digitize(valid_sdepth_batch.energy, 
+                                 self.energy_bins, right=True)
+        
+        valid_energy_batch_idx = np.where((energy_idx > 0) &
+                                          (energy_idx < len(self.energy_bins)))[0]
+        
+        valid_energy_batch = valid_sdepth_batch[valid_energy_batch_idx]
+        
+        return valid_energy_batch
+    
+    
+    
+    def _indices_for_addition(self, batch):
+        # Calculate indices along sdepth dimension
+        sdepth_idx = np.digitize(batch.xdepth, 
+                                 self.sdepth_bins, right=True)
+        # subtract 1 to get index out of bin number
+        sdepth_idx = sdepth_idx - 1
+        
+    
+        # Calculate indices along energy-particle dimension
+        energy_idx = np.digitize(batch.energy, 
+                                 self.energy_bins, right=True)
+
+        # subtract 1 to get index out of bin number
+        energy_idx = energy_idx - 1
+        mceq_idx = self.pdg2idx_mapper.get_pids(batch.pid)
+        
+        en_part_idx = mceq_idx*self.n_energy_grid + energy_idx
+        
+        self.sdepth_idx = sdepth_idx
+        self.en_part_idx = en_part_idx
+        self.energy_idx = energy_idx
+        self.mceq_idx = mceq_idx
+        self.batch_energy = batch.energy
+        
+    
+    def add_batch(self, batch):
+        """Adds particles in the `batch` array to
+        histogram matrix
+
+        Args:
+            batch (ParticleArray): particles
+        """
+        valid_batch = self._filter_valid(batch)
+        self._indices_for_addition(valid_batch)
+        np.add.at(self.shower_dist, (self.sdepth_idx, self.en_part_idx), 1)
+        
+        
+    def _endist_matrix(self):
+        """calculates `len(self.energy_grid)` matrices with 3x3 shape
+        to find an energy distribution on `energy_grid`
+        for a single particle. 
+        
+        The energy distribution distribute the particle in 3 bins
+        on a grid so that it saves number, energy and energy**2 when
+        dn/dE*self.energy_widths
+        """
+        emats = []
+        for i in range(1, len(self.energy_grid)-1):
+            arr_rows = []
+            for j in range(3):
+                arr_rows.append(self.energy_grid[i-1:i+2]**j)
+            
+            emats.append(np.linalg.inv(np.vstack(arr_rows) 
+                                       * self.energy_widths[i-1:i+2]))
+            
+        emats.insert(0, emats[0])  
+        emats.insert(-1, emats[-1])
+        self.emats = np.array(emats)
+        
+        # Shift vector
+        shift_idx = np.zeros(len(self.energy_grid), dtype = np.int32)
+        shift_idx[1:-1] = -1
+        shift_idx[-1] = -2
+        self.shift_idx = shift_idx
+        
+    def _add_barch_to_hist(self):
+        for i in range(len(self.energy_grid)):
+            pidx = np.where(self.energy_idx == i)[0]
+            vx = self.batch_energy[pidx]
+            rightp = np.vstack([vx**0, vx, vx**2])
+            
+            for j in range(3):
+                np.add.at(sss_array, 
+                          (self.sdepth_idx[pidx], 
+                            self.mceq_idx[pidx], 
+                            self.energy_idx[pidx] 
+                            + j + self.shift_idx[i]), 
+                    np.matmul(self.emats[i], rightp))
+                    
+            
+        
+    def get_shower_dist(self, pdg = None):
+        
+        if pdg is None:
+            return self.shower_dist
+        else:
+            # Return only part of a histogram 
+            # for pdgs in `pdg` list
+            pdg_np = np.unique(pdg)
+            mceq_idx = self.pdg2idx_mapper.get_pids(pdg_np)
+            
+            valid_pdg_idx = np.where(mceq_idx != self.pdg2idx_mapper.none_value)[0]
+            valid_pdg = pdg_np[valid_pdg_idx]
+            valid_mceq_idx = mceq_idx[valid_pdg_idx]
+            
+            slices = []
+            post_slices = []
+            for i, idx in enumerate(valid_mceq_idx):
+                slices.append(slice(idx*self.n_energy_grid,
+                               (idx + 1)*self.n_energy_grid))
+                
+                post_slices.append(slice(i*self.n_energy_grid,
+                               (i + 1)*self.n_energy_grid))
+                
+            
+            en_idx = np.r_[tuple(slices)]            
+            return (self.shower_dist[:, en_idx], # histogram
+                    valid_pdg,                   # list of valid pdgs
+                    valid_mceq_idx,              # list of valid mceq particle indicies
+                    post_slices)                 # respective slices in a new histogram
+        
+
+        
+        

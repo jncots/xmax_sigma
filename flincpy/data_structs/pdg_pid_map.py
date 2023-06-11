@@ -45,6 +45,93 @@ class PdgPidMap:
     def _get_pids_full(self, pdgs):
         return np.array([self.pid_pdg_dict[pdg] for pdg in pdgs], 
                         dtype = np.int32)
+        
+
+def pdg2mceq_idx_map(mceq_run):
+    """Return dictionary with mapping from pdg to mceq_idx
+    as mceq_run.pman.pdg2mceqidx gives
+
+    Args:
+        mceq_run (MCEq_Run): initialized MCEq_Run object
+    """
+    pdg_idx_map = {}
+    for pdg_mceq, idx_mceq in mceq_run.pman.pdg2mceqidx.items():
+        # Filter only "ordinary" particles
+        if pdg_mceq[1] == 0 and abs(pdg_mceq[0]) < 10000 and idx_mceq > -1:  
+            # print(pdg_mceq[0], idx_mceq)
+            pdg_idx_map[pdg_mceq[0]] = idx_mceq
+        
+    return pdg_idx_map   
+    
+        
+class PdgPidMap1:
+    """Maps pdgs to pids and pids to pdgs
+    """
+    def __init__(self, pid_pdg_dict, max_pdg = 6000):
+        self.max_pdg = max_pdg
+        self.pid_pdg_dict = pid_pdg_dict
+        self._build_maps()
+                         
+    def _build_maps(self):
+        
+        self.none_value = -2147483640
+        
+        max_pdg_in_dict = max([abs(pdg) for pdg in self.pid_pdg_dict])
+        if  max_pdg_in_dict <= self.max_pdg:
+            total_map = True
+            max_pdg_map = max_pdg_in_dict
+        else:
+            total_map = False
+            max_pdg_map = self.max_pdg
+            
+        
+        max_pid_in_dict = max([pid for pid in self.pid_pdg_dict.values()])   
+             
+        
+        pdg_pid = np.full(max_pid_in_dict + 2, self.none_value, dtype = np.int32)                   
+        pid_pdg = np.full(2 * max_pdg_map + 1, self.none_value, dtype=np.int32)
+        
+        for pdg, pid in self.pid_pdg_dict.items():
+            pdg_pid[pid] = pdg
+            if abs(pdg) <= max_pdg_map:
+                pid_pdg[pdg] = pid
+
+        self.total_map = total_map
+        self.max_pdg_map = max_pdg_map
+        self.pdg_pid = pdg_pid
+        self.pid_pdg = pid_pdg
+        self.max_pid = max(pid_pdg)
+        
+        # Some element pointing to none_value
+        self.pdg_pid_default_ind =np.where(self.pdg_pid == self.none_value)[0][0]
+        self.pid_pdg_default_ind =np.where(self.pid_pdg == self.none_value)[0][0]
+            
+    
+    def get_pdgs(self, pids):        
+        try:
+            return self.pdg_pid[pids]
+        except:
+            pids_np = np.array(pids)
+            last_ind = len(self.pdg_pid) - 1
+            valid_pids = np.where(abs(pids_np) < last_ind, 
+                                  pids_np, 
+                                  self.pdg_pid_default_ind)
+            return self.pdg_pid[valid_pids]
+                
+    def get_pids(self, pdgs):
+        try:
+            return self.pid_pdg[pdgs]
+        except:
+            pdgs_np = np.array(pdgs)
+            valid_pdgs = np.where(abs(pdgs_np) < self.max_pdg_map, 
+                     pdgs_np, 
+                     self.pid_pdg_default_ind)
+            return self.pid_pdg[valid_pdgs]
+            # return self._get_pids_full(pdgs)
+    
+    def _get_pids_full(self, pdgs):
+        return np.array([self.pid_pdg_dict[pdg] for pdg in pdgs], 
+                        dtype = np.int32)        
             
             
         
