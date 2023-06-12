@@ -1,3 +1,9 @@
+if __name__ == "__main__":
+    from pathlib import Path
+    import sys
+    print(Path(__file__).parents[2])
+    sys.path.append(str(Path(__file__).parents[2]))
+
 import numpy as np
 from data_structs.pdg_pid_map import PdgPidMap
 
@@ -36,33 +42,12 @@ class CrossSectionOnTable:
         """
         xdepth = np.full(len(pdg), np.inf, dtype=np.float64)
         # Choose only pdgs for which cross sections are tabulated
-        valid_inds = self.pmap.valid_pid_indices(pdg)
+        valid_inds = self.pmap.valid_pdg_indices(pdg)
         pid_array = self.pmap.get_pids(pdg)
         valid_pids_set = set(self.pmap.get_pids(pdg[valid_inds]))
-        # print(f"pdg[valid_inds] = {pdg[valid_inds]}")
-        # print(f"pid_slice = {pid_array}")
-        # print(f"pid_pdg = {self.pmap.pid_pdg}")
-        # print(f"pdg_pid = {self.pmap.pdg_pid}")
-        # print(f"pid_pdg_dict = {self.pmap.pid_pdg_dict}")
         for pid in valid_pids_set:
-            # if pid in [-13, 13]:
-            #     print(f"get_mean_xdepth: pid_array = {set(pid_array)}")
             pid_slice = np.where(pid_array == pid)[0]
-            # print(f"pid_slice = {pid_slice}")
             xdepth[pid_slice] = np.interp(energy[pid_slice], self.energy_grid, self.xdepth_tab[pid,:])
-            # if abs(pid) > self.pmap.max_pid:
-            #     xdepth[pid_slice] = np.full_like(energy[pid_slice], np.inf, dtype=np.float64)
-            # else:
-            #     xdepth[pid_slice] = np.interp(energy[pid_slice], self.energy_grid, self.xdepth_tab[pid,:])
-        
-        muons_idx = np.where(np.isin(pdg, np.array([-13, 13])))[0]
-        if (np.sum(muons_idx) > 0):
-            print(f"valid_pids_set = {valid_pids_set}")
-            print(f"set(pid_array) = {set(pid_array)}")
-            print(f"set(pdg[valid_inds]) = {set(pdg[valid_inds])}")
-            print(f"pdg[valid_inds] = {pdg[valid_inds]}")
-            print(f"Muon pdgs = {pdg[muons_idx]}")
-            print(f"Muon xdepths = {xdepth[muons_idx]}")
                     
         return xdepth
             
@@ -82,9 +67,8 @@ class CrossSectionOnTable:
 
  
 if __name__ == "__main__":
-
     from csec_tables import CrossSectionTableMCEq
-    from pdg_pid_map import PdgPidMap, PdgLists
+    from data_structs.pdg_pid_map import PdgPidMap, PdgLists
     
     cs_table = CrossSectionTableMCEq()
     # cs_table.add_pdgs(PdgLists().longer_pi0_to_mceq)
@@ -96,7 +80,7 @@ if __name__ == "__main__":
     # pdg_list = np.array([111, 111, 111, 
     #                     111, -211, 
     #                     111, 111, 2212, 111], dtype=np.int32)
-    pdg_list = np.array([13, -13, 11, -11, 22], dtype=np.int32)
+    pdg_list = np.array([13, -13, 11, -11, 22, 111, -211], dtype=np.int32)
     energy_list = np.array([5e3, 5e2, 4e6, 4e3, 2e5, 2e5, 4e3, 5e2, 2e5], dtype=np.float64)    
 
     print(csec.get_mean_xdepth(pdg_list, energy_list))

@@ -15,7 +15,7 @@ class ParticleArray:
         filter_code: is code to filter entries
         {1: interacting, 2: decaying, 3: final}
     """
-    _max_size = 10000000
+    _max_size = 100000000
     _int_type = np.int32
     
     data_attributes = ["pid",

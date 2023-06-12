@@ -10,6 +10,7 @@ import mceq_config as config
 import crflux.models as pm
 
 
+
 class MCEQDistributions():
     def __init__(self,
                  energy,
@@ -26,30 +27,31 @@ class MCEQDistributions():
                  hybrid_crossover = 0.5,
                  density_model = ("CORSIKA", ("USStd", None))):
         
-        # config.mceq_db_fname = "mceq_db_lext_dpm191_v150.h5"
-        # config.generic_losses_all_charged = generic_losses_all_charged
-        # config.enable_energy_loss = enable_energy_loss
-        # config.muon_helicity_dependence = muon_helicity_dependence
-        # config.adv_set["disable_decays"] = disable_decays
-        # config.hybrid_crossover = hybrid_crossover
+        config.mceq_db_fname = "mceq_db_lext_dpm191_v150.h5"
+        config.generic_losses_all_charged = generic_losses_all_charged
+        config.enable_energy_loss = enable_energy_loss
+        config.muon_helicity_dependence = muon_helicity_dependence
+        config.adv_set["disable_decays"] = disable_decays
+        config.hybrid_crossover = hybrid_crossover
         
         config.e_min = energy_range[0]
         config.e_max = energy_range[1]
         
-        config.enable_2D = True
-        config.mceq_db_fname = 'mceq_db_rare_decays_URQMD_lext_2D.h5'
-        config.enable_default_tracking = False
-        config.enable_em = False
-        config.enable_em_ion = False
-        config.hybrid_crossover = 0.1
-        config.muon_energy_loss = True
-        config.enable_cont_rad_loss = True
-        config.enable_energy_loss = True
-        config.muon_helicity_dependence = True
-        config.density_model = ("CORSIKA", ("USStd", None))
+        # config.enable_2D = True
+        # config.mceq_db_fname = 'mceq_db_rare_decays_URQMD_lext_2D.h5'
+        # config.mceq_db_fname = "mceq_db_lext_dpm191_v150.h5"
+        # config.enable_default_tracking = False
+        # config.enable_em = False
+        # config.enable_em_ion = False
+        # config.hybrid_crossover = 0.1
+        # config.muon_energy_loss = True
+        # config.enable_cont_rad_loss = True
+        # config.enable_energy_loss = True
+        # config.muon_helicity_dependence = True
+        # config.density_model = ("CORSIKA", ("USStd", None))
 
-        config.adv_set['force_resonance'] = [421, 431, 411, 310]
-        config.adv_set['disabled_particles'] = [22, 111, 16, 11]
+        # config.adv_set['force_resonance'] = [421, 431, 411, 310]
+        # config.adv_set['disabled_particles'] = [22, 111, 16, 11]
         
         # print(json.dumps(config.adv_set, indent = 4))
         
@@ -75,6 +77,8 @@ class MCEQDistributions():
         mceq_run.set_theta_deg(theta_deg)
         mceq_run.set_single_primary_particle(energy, pdg_id = pdg_id)
         mceq_run.solve(int_grid=[slant_depth])
+
+        self.mceq_run = mceq_run
 
         # Populate longitudinal spectra for all particles:
         part_long_spectra = {}
