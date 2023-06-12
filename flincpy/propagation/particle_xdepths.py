@@ -12,8 +12,8 @@ import numpy as np
 
 
 class NextDecayXdepth:
-    def __init__(self, *, xdepth_on_table):   
-        particle_properties = ParticlePropertiesParticle()
+    def __init__(self, *, xdepth_on_table, 
+                 particle_properties = ParticlePropertiesParticle()):
         tab_particle_properties = TabulatedParticleProperties(particle_properties=particle_properties)
         self.decay_xdepth = DecayXdepth(tab_particle_properties=tab_particle_properties,
                                         xdepth_on_table=xdepth_on_table)
@@ -83,9 +83,11 @@ class DefaultXdepthGetter:
         self.xdepth_conversion.set_theta(theta_deg)
         self.max_xdepth = self.xdepth_conversion.get_max_xdepth()
         self.xdepth_on_table = XdepthOnTable(xdepth_conversion = self.xdepth_conversion, npoints=1000)
+        self.particle_properties = ParticlePropertiesParticle()
 
         if mode == "both":
-            self.next_decay = NextDecayXdepth(xdepth_on_table=self.xdepth_on_table)
+            self.next_decay = NextDecayXdepth(xdepth_on_table=self.xdepth_on_table,
+                                              particle_properties = self.particle_properties)
             self.next_inter = NextInterXdepth(xdepth_on_table=self.xdepth_on_table)
         elif mode == "decay":
             self.next_decay = NextDecayXdepth(xdepth_on_table=self.xdepth_on_table)

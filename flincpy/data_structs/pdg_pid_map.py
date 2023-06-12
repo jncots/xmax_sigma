@@ -1,15 +1,59 @@
 import numpy as np
 from particle import Particle
 
-
+def unique_pdg_list(pdgs):
+    res = list(set(pdgs))
+    res.sort(key=lambda x: (abs(x), x > 0))
+    return res
 
 class PdgPidMap:
     def __init__(self, pid_pdg_dict, max_pdg = 6000):
         self.max_pdg = max_pdg
         self.pid_pdg_dict = pid_pdg_dict
         self._build_maps()
+        
+#     def _build_maps(self):
+        
+#         self.none_value = -2147483640
+#         # Numpy array containing all known pdg ids
+#         self.known_pdg_ids = np.array(unique_pdg_list(self.pid_pdg_dict.keys()))
+        
+#         max_pdg_in_dict = max([abs(pdg) for pdg in self.pid_pdg_dict])
+#         if  max_pdg_in_dict <= self.max_pdg:
+#             total_map = True
+#             max_pdg_map = max_pdg_in_dict
+#         else:
+#             total_map = False
+#             max_pdg_map = self.max_pdg
+            
+        
+#         max_pid_in_dict = max([pid for pid in self.pid_pdg_dict.values()])   
+             
+        
+#         pdg_pid = np.full(max_pid_in_dict + 2, self.none_value, dtype = np.int32)                   
+#         pid_pdg = np.full(2 * max_pdg_map + 1, self.none_value, dtype=np.int32)
+        
+#         for pdg, pid in self.pid_pdg_dict.items():
+#             pdg_pid[pid] = pdg
+#             if abs(pdg) <= max_pdg_map:
+#                 pid_pdg[pdg] = pid
+
+#         self.total_map = total_map
+#         self.max_pdg_map = max_pdg_map
+#         self.pdg_pid = pdg_pid
+#         self.pid_pdg = pid_pdg
+#         self.max_pid = max(pid_pdg)
+        
+#         # Some element pointing to none_value
+#         self.pdg_pid_default_ind =np.where(self.pdg_pid == self.none_value)[0][0]
+#         self.pid_pdg_default_ind =np.where(self.pid_pdg == self.none_value)[0][0]    
                          
     def _build_maps(self):
+        
+        self.none_value = -2147483640
+        # Numpy array containing all known pdg ids
+        self.known_pdg_ids = np.array(unique_pdg_list(self.pid_pdg_dict.keys()))
+        
         max_pdg_in_dict = max([abs(pdg) for pdg in self.pid_pdg_dict])
         if  max_pdg_in_dict <= self.max_pdg:
             total_map = True
@@ -17,6 +61,9 @@ class PdgPidMap:
         else:
             total_map = False
             max_pdg_map = self.max_pdg
+        
+        # Numpy array containing all known pdg ids
+        self.known_pdg_ids = np.array(unique_pdg_list(self.pid_pdg_dict.keys()))
         
         pdg_pid = np.empty(len(self.pid_pdg_dict), dtype = np.int32)                   
         pid_pdg = np.full(2 * max_pdg_map + 1,-2147483640, dtype=np.int32)
@@ -32,6 +79,9 @@ class PdgPidMap:
         self.pid_pdg = pid_pdg
         self.max_pid = max(pid_pdg)
             
+    
+    def valid_pid_indices(self, pids):
+        return np.where(np.isin(pids, self.known_pdg_ids))[0]
     
     def get_pdgs(self, pids):
         return self.pdg_pid[pids]

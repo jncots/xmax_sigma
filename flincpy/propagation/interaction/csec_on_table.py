@@ -34,19 +34,35 @@ class CrossSectionOnTable:
             energy (np.array): array of energies
             xdepth (np.array): output array with xdepth
         """
-        xdepth = np.empty(len(pdg), dtype=np.float64)
+        xdepth = np.full(len(pdg), np.inf, dtype=np.float64)
+        # Choose only pdgs for which cross sections are tabulated
+        valid_inds = self.pmap.valid_pid_indices(pdg)
         pid_array = self.pmap.get_pids(pdg)
+        valid_pids_set = set(self.pmap.get_pids(pdg[valid_inds]))
+        # print(f"pdg[valid_inds] = {pdg[valid_inds]}")
         # print(f"pid_slice = {pid_array}")
         # print(f"pid_pdg = {self.pmap.pid_pdg}")
         # print(f"pdg_pid = {self.pmap.pdg_pid}")
         # print(f"pid_pdg_dict = {self.pmap.pid_pdg_dict}")
-        for pid in set(pid_array):
+        for pid in valid_pids_set:
+            # if pid in [-13, 13]:
+            #     print(f"get_mean_xdepth: pid_array = {set(pid_array)}")
             pid_slice = np.where(pid_array == pid)[0]
             # print(f"pid_slice = {pid_slice}")
-            if abs(pid) > self.pmap.max_pid:
-                xdepth[pid_slice] = np.full_like(energy[pid_slice], np.inf, dtype=np.float64)
-            else:
-                xdepth[pid_slice] = np.interp(energy[pid_slice], self.energy_grid, self.xdepth_tab[pid,:])
+            xdepth[pid_slice] = np.interp(energy[pid_slice], self.energy_grid, self.xdepth_tab[pid,:])
+            # if abs(pid) > self.pmap.max_pid:
+            #     xdepth[pid_slice] = np.full_like(energy[pid_slice], np.inf, dtype=np.float64)
+            # else:
+            #     xdepth[pid_slice] = np.interp(energy[pid_slice], self.energy_grid, self.xdepth_tab[pid,:])
+        
+        muons_idx = np.where(np.isin(pdg, np.array([-13, 13])))[0]
+        if (np.sum(muons_idx) > 0):
+            print(f"valid_pids_set = {valid_pids_set}")
+            print(f"set(pid_array) = {set(pid_array)}")
+            print(f"set(pdg[valid_inds]) = {set(pdg[valid_inds])}")
+            print(f"pdg[valid_inds] = {pdg[valid_inds]}")
+            print(f"Muon pdgs = {pdg[muons_idx]}")
+            print(f"Muon xdepths = {xdepth[muons_idx]}")
                     
         return xdepth
             

@@ -4,11 +4,20 @@ import numpy as np
 
 
 class HadronInteraction:
-    def __init__(self):
-        self.target = chromo.kinematics.CompositeTarget([("N", 0.78), ("O", 0.22)])
-        # self.target = (14, 7)
-        ekin = chromo.kinematics.FixedTarget(20000, "proton", self.target)
-        self.event_generator = chromo.models.DpmjetIII191(ekin)
+    def __init__(self, imodel, xdepth_getter):
+        
+        self.target = imodel.target
+        self.event_generator = imodel.event_generator
+        
+        # Get a global PdgPidMap object
+        # ToDo use the same object in cross section tabulation 
+        self.pmap = xdepth_getter.particle_properties.pmap
+        
+        # self.target = chromo.kinematics.CompositeTarget([("N", 0.78), ("O", 0.22)])
+        # # self.target = (14, 7)
+        # ekin = chromo.kinematics.FixedTarget(1e7, "O16", self.target)
+        # self.event_generator = chromo.models.DpmjetIII191(ekin)
+        
         # self.event_generator = chromo.models.EposLHC(ekin)
         # self.event_generator = chromo.models.Sibyll23d(ekin)
         # self.event_generator._ecm_min = 2 # GeV
@@ -68,6 +77,15 @@ class HadronInteraction:
             #     print(self.event_generator.kinematics) 
             #     self.event_generator._lib.dt_evtout(6)
             #     print("Here STOP")
+            
+            # Filter out only known pdgs, because some models
+            # (such as DpmjetIII) sometimes produce
+            # particles with unknown pdgs (unknown to 
+            # `Particle` package which is 
+            # used for initialization)
+            # This is requires copy which slightly reduce speed
+            event = event[self.pmap.valid_pid_indices(event.pid)]
+
             
             children.push(pid = event.pid, 
                             energy = event.en, 

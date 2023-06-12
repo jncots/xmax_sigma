@@ -12,10 +12,23 @@ import numpy as np
 import time
 
 
+
+# def example_interaction_model():
+#     import chromo
+#     target = chromo.kinematics.CompositeTarget([("N", 0.78), ("O", 0.22)])
+#     ekin = chromo.kinematics.FixedTarget(1e7, "O16", target)
+#     model = chromo.models.DpmjetIII191
+    
+#     return InteractionModel(model, ekin, target)
+
+class InteractionModel:
+    def __init__(self, model, initial_kinematics, target):
+        self.target = target
+        self.event_generator = model(initial_kinematics)
+
 class CascadeDriver:
-    def __init__(self):
-        
-        self.hadron_interaction = HadronInteraction()
+    def __init__(self, imodel):
+        self.imodel = imodel
         self.id_generator = IdGenerator()
         
         
@@ -35,6 +48,7 @@ class CascadeDriver:
     def set_zenith_angle(self, zenith_angle):
         self.xdepth_getter = DefaultXdepthGetter(zenith_angle)
         self.decay_driver = DecayDriver(self.xdepth_getter)
+        self.hadron_interaction = HadronInteraction(self.imodel, self.xdepth_getter)
         
         
     def set_decaying_pdgs(self, mceq_decaying_pdgs):
@@ -259,7 +273,10 @@ class CascadeDriver:
                                          np.array([-13, 13], dtype = np.int32)))[0]
             if len(rej_muons) > 0:
                 print(f"Muons pdgs = {self.rejection_stack.pid[rej_muons]}"
-                      f" energy = {self.rejection_stack.energy[rej_muons]}")
+                      f" energy = {self.rejection_stack.energy[rej_muons]}"
+                      f" xdepth = {self.rejection_stack.xdepth[rej_muons]}"
+                      f" xdepth_decay = {self.rejection_stack.xdepth_decay[rej_muons]}"
+                      f" xdepth_inter = {self.rejection_stack.xdepth_inter[rej_muons]}")
         
 
         self.working_stack.clear()
