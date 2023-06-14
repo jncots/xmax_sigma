@@ -96,16 +96,16 @@ def pdg2mceq_idx_map(mceq_run):
     
         
 class PdgPidMap1:
-    """Maps pdgs to pids and pids to pdgs
-    """
     def __init__(self, pid_pdg_dict, max_pdg = 6000):
         self.max_pdg = max_pdg
         self.pid_pdg_dict = pid_pdg_dict
-        self._build_maps()
+        self._build_maps() 
                          
     def _build_maps(self):
         
         self.none_value = -2147483640
+        self.known_pdg_ids = np.array(unique_pdg_list(self.pid_pdg_dict.keys()))
+        self.known_pid_ids = np.array(unique_pdg_list(self.pid_pdg_dict.values()))
         
         max_pdg_in_dict = max([abs(pdg) for pdg in self.pid_pdg_dict])
         if  max_pdg_in_dict <= self.max_pdg:
@@ -115,11 +115,9 @@ class PdgPidMap1:
             total_map = False
             max_pdg_map = self.max_pdg
             
-        
+            
         max_pid_in_dict = max([pid for pid in self.pid_pdg_dict.values()])   
-             
-        
-        pdg_pid = np.full(max_pid_in_dict + 2, self.none_value, dtype = np.int32)                   
+        pdg_pid = np.full(max_pid_in_dict + 1, self.none_value, dtype = np.int32)               
         pid_pdg = np.full(2 * max_pdg_map + 1, self.none_value, dtype=np.int32)
         
         for pdg, pid in self.pid_pdg_dict.items():
@@ -132,37 +130,60 @@ class PdgPidMap1:
         self.pdg_pid = pdg_pid
         self.pid_pdg = pid_pdg
         self.max_pid = max(pid_pdg)
-        
-        # Some element pointing to none_value
-        self.pdg_pid_default_ind =np.where(self.pdg_pid == self.none_value)[0][0]
-        self.pid_pdg_default_ind =np.where(self.pid_pdg == self.none_value)[0][0]
-            
     
-    def get_pdgs(self, pids):        
+    
+    def valid_pid_indices(self, pids):
+        return np.where(np.isin(pids, self.known_pid_ids))[0]       
+    
+    def valid_pdg_indices(self, pdgs):
+        return np.where(np.isin(pdgs, self.known_pdg_ids))[0]
+    
+    def get_pdgs(self, pids):
         try:
             return self.pdg_pid[pids]
         except:
+            # Filter out not valid ids
             pids_np = np.array(pids)
-            last_ind = len(self.pdg_pid) - 1
-            valid_pids = np.where(abs(pids_np) < last_ind, 
-                                  pids_np, 
-                                  self.pdg_pid_default_ind)
-            return self.pdg_pid[valid_pids]
+            valid_ids = self.valid_pid_indices(pids_np)
+            final_pdgs = np.full(len(pids_np), self.none_value, dtype=np.int32)
+            final_pdgs[valid_ids] = self.pdg_pid[pids_np[valid_ids]]
+            return final_pdgs
+            
                 
     def get_pids(self, pdgs):
         try:
             return self.pid_pdg[pdgs]
         except:
-            pdgs_np = np.array(pdgs)
-            valid_pdgs = np.where(abs(pdgs_np) < self.max_pdg_map, 
-                     pdgs_np, 
-                     self.pid_pdg_default_ind)
-            return self.pid_pdg[valid_pdgs]
-            # return self._get_pids_full(pdgs)
-    
+            try:
+                return self._get_pids_full(pdgs)
+            except:
+                # Filter out not valid ids
+                pdgs_np = np.array(pdgs)
+                valid_ids = self.valid_pdg_indices(pdgs_np)
+                final_pids = np.full(len(pdgs), self.none_value, dtype=np.int32)
+                final_pids[valid_ids] = self.get_pids(pdgs_np[valid_ids])
+                return final_pids
+        
     def _get_pids_full(self, pdgs):
         return np.array([self.pid_pdg_dict[pdg] for pdg in pdgs], 
-                        dtype = np.int32)        
+                        dtype = np.int32)
+        
+
+def pdg2mceq_idx_map(mceq_run):
+    """Return dictionary with mapping from pdg to mceq_idx
+    as mceq_run.pman.pdg2mceqidx gives
+
+    Args:
+        mceq_run (MCEq_Run): initialized MCEq_Run object
+    """
+    pdg_idx_map = {}
+    for pdg_mceq, idx_mceq in mceq_run.pman.pdg2mceqidx.items():
+        # Filter only "ordinary" particles
+        if pdg_mceq[1] == 0 and abs(pdg_mceq[0]) < 10000 and idx_mceq > -1:  
+            # print(pdg_mceq[0], idx_mceq)
+            pdg_idx_map[pdg_mceq[0]] = idx_mceq
+        
+    return pdg_idx_map    
             
             
         

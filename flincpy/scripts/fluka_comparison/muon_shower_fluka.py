@@ -27,8 +27,9 @@ def separate_number(string):
 def muon_shower_data():
     from pathlib import Path
 
-    base_dir = Path("/hetghome/antonpr/xmax_sigma/flincpy/scripts")
-    data_dir = base_dir / "fluka_comparison" / "muon_showers"
+
+    base_dir = Path("/hetghome/antonpr/projects/mceq_vs/data/fluka")
+    data_dir = base_dir / "04_muon_showers/alfredo_muons/03_res_in_kinetic_energy"
     files = {"mu" : "mutest_muyld_tab.lis",
              "anue" : "mutest_anueyld_tab.lis",   
              "nue" : "mutest_nueyld_tab.lis",
@@ -39,6 +40,26 @@ def muon_shower_data():
     plabels = [r"$\mu$",
                r"$\bar{\nu}_{e}$", r"$\nu_{e}$", 
                r"$\bar{\nu_{\mu}}$", r"$\nu_{\mu}$"]
+    
+    # files = {"anue" : "mutest_anueyld_tab.lis",   
+    #          "nue" : "mutest_nueyld_tab.lis",
+    #          "anumu" : "mutest_anumuyld_tab.lis",  
+    #          "numu" : "mutest_numuyld_tab.lis"}
+    
+    
+    # plabels = [r"$\bar{\nu}_{e}$", r"$\nu_{e}$", 
+    #            r"$\bar{\nu_{\mu}}$", r"$\nu_{\mu}$"]
+    
+    
+    # files = {"mu" : "mutest_muyld_tab.lis",
+    #          "anue" : "mutest_anueyld_tab.lis",   
+    #          "nue" : "mutest_nueyld_tab.lis",
+    #          "numu" : "mutest_numuyld_tab.lis"}
+    
+    
+    # plabels = [r"$\mu$",
+    #            r"$\bar{\nu}_{e}$",  r"$\nu_{e}$", 
+    #             r"$\nu_{\mu}$"]
 
     data = {}
     iplable = 0

@@ -46,9 +46,11 @@ pdg_list = [-12, 12, -13, 13, -14, 14]
 pdg_dict = { pdg: all_particles_dict[pdg] for pdg in pdg_list}
 
 def corsika_hist_en(en_bins, h5file = "corsika_leptons_trial.h5"):
-    base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
-    h5file = base_dir / h5file
+    # base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
+    # h5file = base_dir / h5file
+    # h5file = 
     energy_hist = dict()
+    print(h5file)
     with h5py.File(h5file, "r") as corsika_data:
         
         num_primaries = corsika_data["num_primaries"]
