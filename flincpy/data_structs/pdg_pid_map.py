@@ -243,7 +243,44 @@ class PdgLists:
                     2212: 16, -3122: 17, 3122: 18})
 
         self._set_longer_pi0_to_mceq()
-    
+        
+        self.leptons_mceq = np.array([-11, 11, -12, 12, -13, 13, -14, 14, -16, 16, 22])
+        self.leptons_stable_mceq = np.array([-11, 11, -12, 12, -14,  14, -16,  16, 22])
+        self.leptons_decay_mceq = np.array([-13,  13])
+        
+        self.hadrons_mceq = np.array([111, 130, -211, 211, 310, -321, 321, -411,   
+                                      411, -421, 421, -431, 431, 
+                                      -2112, 2112, -2212, 2212, -3122, 3122])
+        
+        self.hadrons_mix_mceq = np.array([111, 130, -211, 211, 310, -321, 321, -411,   
+                                      411, -421, 421, -431, 431, 
+                                      -2112, 2112, -3122, 3122])
+        
+        self.hadrons_stable_mceq = np.array([-2212, 2212])
+        
+        self.hadron_emix_map = {111: 1122018454.3019652, 
+                                130: 22.38721138568341, 
+                                -211: 7.079457843841384, 
+                                211: 8.91250938133746, 
+                                310: 8912.509381337459, 
+                                -321: 70.79457843841384, 
+                                321: 89.12509381337459, 
+                                -411: 2238721.138568342, 
+                                411: 2238721.138568342, 
+                                -421: 4466835.921509635, 
+                                421: 4466835.921509635, 
+                                -431: 4466835.921509635, 
+                                431: 4466835.921509635, 
+                                -2112: 0.11220184543019636, 
+                                2112: 0.11220184543019636, 
+                                -3122: 5623.4132519034965, 
+                                3122: 5623.4132519034965}
+        
+        hmix_map = PdgPidMap({pdg : pid for pid, pdg in 
+                              enumerate(self.hadrons_mix_mceq)})
+        self.hadron_emix = np.zeros_like(hmix_map.pid_pdg, dtype=np.float64)
+        for pdg, emix in self.hadron_emix_map.items():
+            self.hadron_emix[pdg] = emix
     
     def _set_longer_pi0_to_mceq(self):    
         self.longer_pi0_to_mceq = ({-511: -411, 511: 411, -521: -421, 521: 421,

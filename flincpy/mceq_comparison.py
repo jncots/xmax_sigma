@@ -16,7 +16,7 @@ class MCEQDistributions():
                  energy,
                  pdg_id,
                  theta_deg,
-                 slant_depth,
+                 slant_depths,
                  energy_range,
                  pname_tuples,
                  interaction_model = "DPMJET-III-19.1", 
@@ -69,14 +69,16 @@ class MCEQDistributions():
         self.e_grid = mceq_run.e_grid
         self.e_widths = mceq_run.e_widths
         self.e_bins = mceq_run.e_bins
+        
+        self.slant_depths = np.array(slant_depths)
 
-        if mceq_run.density_model.max_X < slant_depth:
+        if mceq_run.density_model.max_X < np.max(self.slant_depths):
             raise ValueError(f"Maximum slant_xdepth = {mceq_run.density_model.max_X}")
 
         #Set the zenith angle
         mceq_run.set_theta_deg(theta_deg)
         mceq_run.set_single_primary_particle(energy, pdg_id = pdg_id)
-        mceq_run.solve(int_grid=[slant_depth])
+        mceq_run.solve(int_grid=self.slant_depths)
 
         self.mceq_run = mceq_run
 
@@ -84,22 +86,32 @@ class MCEQDistributions():
         part_long_spectra = {}
         for p in mceq_run.pman.all_particles:
             # print(f"Spectrum for {p.name}")
-            try: 
-                part_long_spectra[p.name] = mceq_run.get_solution(p.name, grid_idx=0)
+            part_long_xdepth = {}
+            try:
+                for ixdepth in range(len(self.slant_depths)):
+                    part_long_xdepth[ixdepth] = mceq_run.get_solution(p.name, grid_idx=ixdepth)
+                part_long_spectra[p.name] = part_long_xdepth    
             except Exception as ex:
                 pass
                 # print(ex)    
 
-        self.flux = dict()
-        for pnames in pname_tuples:
+
+        self.flux_depth = dict()
+        for ixdepth in range(len(self.slant_depths)):
             
-            group_name = pnames[0]
-            self.flux[group_name] = None
-            for pname in pnames[1:]:
-                if self.flux[group_name] is None:
-                    self.flux[group_name] = part_long_spectra[pname]
-                else:
-                    self.flux[group_name] += part_long_spectra[pname]
+            self.flux = dict()
+            for pnames in pname_tuples:
                 
-            self.flux[group_name] = self.flux[group_name] * self.e_widths
-    
+                group_name = pnames[0]
+                self.flux[group_name] = None
+                for pname in pnames[1:]:
+                    if self.flux[group_name] is None:
+                        self.flux[group_name] = part_long_spectra[pname][ixdepth]
+                    else:
+                        self.flux[group_name] += part_long_spectra[pname][ixdepth]
+                
+                self.flux[group_name] = self.flux[group_name] * self.e_widths
+
+            self.flux_depth[ixdepth] = self.flux
+        
+        self.flux = self.flux_depth

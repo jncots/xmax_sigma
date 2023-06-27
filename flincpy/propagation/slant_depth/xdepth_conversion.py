@@ -7,7 +7,8 @@ class XdepthConversion:
     def __init__(self,* ,atmosphere=CorsikaAtmosphere("USStd", None)):
         self.atmosphere = atmosphere
         self.length_unit = self.length_units["cm"]
-        # best found for CorsikaAtmosphere("SouthPole", "December")
+        # self._min_xdepth = 1e-6 is the best value
+        # found for CorsikaAtmosphere("SouthPole", "December")
         self._min_xdepth = 1e-6
         self._calc_max()
         
@@ -76,23 +77,27 @@ class XdepthConversion:
 if __name__ == "__main__":
     xconv = XdepthConversion()
     xconv.set_length_unit("km")
-    xconv.set_theta(0) 
+    xconv.set_theta(30) 
 
-    # heights = [0, 5, 15, 20]
-    heights = [0.025232939039804742, 3.808506428696458, 14.096117926440979]
+
+    heights = [0, 5, 15, 20]
+    
+    
+    # heights = [0.025232939039804742, 3.808506428696458, 14.096117926440979]
     for height in heights:
         print(f"h={height}, X={xconv.convert_h2x(height)} g/cm2")
     
-    print("------\n")
+    # print("------\n")
     # xdepths = [143, 647, 1033]
-    
     # xdepths = [1, 10, 50, 100, 300, 400, 500, 600, 650, 700, 800, 900, 1000, 1033]  
-    xdepths = [900, 901, 910, 950, 1000, 1300, 1700, 2000, 2065] 
-    # xdepths = [1.23979442E+02, 5.60648882E+02, 8.94994432E+02]    
-    for xdepth in xdepths:
-        print(f"h={xdepth}, X={xconv.convert_x2h(xdepth)} km")    
+    # xdepths = [900, 901, 910, 950, 1000, 1300, 1700, 2000, 2065] 
+    # xdepths = [21, 86, 210, 492, 1033] 
+    # xdepths = [1.23979442E+02, 5.60648882E+02, 8.94994432E+02] 
+    # print(f"For zenith angle = {xconv.get_theta()}")   
+    # for xdepth in xdepths:
+    #     print(f"X={xdepth}, h={xconv.convert_x2h(xdepth)} km")    
     
-    print(f"X_max = {xconv.get_max_xdepth()}")
+    # print(f"X_max = {xconv.get_max_xdepth()}")
     
     
     # xconv.set_theta(0)

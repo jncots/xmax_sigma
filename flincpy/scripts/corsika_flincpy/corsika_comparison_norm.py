@@ -175,20 +175,25 @@ def combined_ang_data(energy_hist, pdgs):
             dist_en.append((hist, ang_bins, cur_en_label, label_x, label_p, cur_en, hist_error))
         dist_xdepth.append(dist_en)    
     return dist_xdepth
-  
-    
-if __name__ == "__main__":
+
+def print_h5file_structure(h5file):
+    """Print a structure of db
+    Args:
+        h5file (pathlib.Path): path to *.h5 file
+    """
     import nexusformat.nexus as nx
-    
-    base_dir = Path("/hetghome/antonpr/xmax_sigma/data_comparison")
-    # h5file = base_dir/"corsika_leptons.h5"
-    h5file = base_dir/"11_corsika_data/muon_run_61.h5"
-    # #Print a structure of db
     f = nx.nxload(h5file)
     print(f.tree)
     
     # with h5py.File(h5file, "r") as corsika_data:
     #     num_primaries = corsika_data["num_primaries"]
     #     print(np.array(num_primaries))
+      
+    
+if __name__ == "__main__":
+    import nexusformat.nexus as nx
+    base_dir = Path("/hetghome/antonpr/projects/mceq_vs/data/corsika")
+    h5file = base_dir/"03_single_muon_shower/01_single_muon_run/01_single_muon.h5"
+    print_h5file_structure(h5file)
     
         

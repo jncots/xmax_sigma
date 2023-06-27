@@ -140,8 +140,8 @@ class CascadeDriver:
         start_time = time.time()        
         while len(self.working_stack) > 0:
             
-            # print(f"\r{iloop} Number of inter = {self.number_of_interactions}"
-            #       f" number of decays = {self.number_of_decays}")
+            print(f"\r{iloop} Number of inter = {self.number_of_interactions}"
+                  f" number of decays = {self.number_of_decays}")
             
             self.filter_by_energy()
             self.filter_by_slant_depth()         
@@ -164,23 +164,13 @@ class CascadeDriver:
         # Put in the working stack particles with above threshold energy
         is_above_threshold = wstack.energy > self.threshold_energy
         above_threshold_idx = np.where(is_above_threshold)[0]
-        
-        # TODO
-        # Come up with a better name for a stack instead of 
-        # self.working_stack_filter
-        # ---
         self.working_stack_filter.clear()
         self.working_stack_filter.append(wstack[above_threshold_idx])
         
         
         # Separate the particles that should decay before moving to final_stack
         # from particles that are already in final state and should move to final_stack
-        is_below_threshold = np.logical_not(is_above_threshold)
-        
-        # TODO
-        # Change here to: 
-        # is_stable_final = np.isin(wstack.pid, self.pdg_lists.mceq_particles)
-        # ---
+        is_below_threshold =  np.logical_not(is_above_threshold)
         is_decaying = np.isin(wstack.pid, self.force_decaying_pdgs)
         is_stable = np.logical_not(is_decaying)
         
@@ -205,28 +195,28 @@ class CascadeDriver:
     def filter_by_slant_depth(self):
         wstack = self.working_stack_filter.valid()
         
-        # is_stable_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_stable_mceq)
-        # is_decaying_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_decay_mceq)
-        # is_mixing_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_mix_mceq)
-        # is_stable_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_stable_mceq)
+        is_stable_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_stable_mceq)
+        is_decaying_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_decay_mceq)
+        is_mixing_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_mix_mceq)
+        is_stable_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_stable_mceq)
         
         
-        # self.final_stack.append(wstack[is_stable_lepton])
-        # self.decay_stack.append(wstack[is_decaying_lepton])
+        self.final_stack.append(wstack[is_stable_lepton])
+        self.decay_stack.append(wstack[is_decaying_lepton])
         
-        # mixing_hadrons = wstack[is_mixing_hadron]
-        # is_mixing = self.pdg_lists.hadron_emix[mixing_hadrons.pid] < mixing_hadrons.energy
-        # is_only_decaying = np.logical_not(is_mixing)
+        mixing_hadrons = wstack[is_mixing_hadron]
+        is_mixing = self.pdg_lists.hadron_emix[mixing_hadrons.pid] < mixing_hadrons.energy
+        is_only_decaying = np.logical_not(is_mixing)
         
-        # self.decay_stack.append(mixing_hadrons[is_only_decaying])
+        self.decay_stack.append(mixing_hadrons[is_only_decaying])
         
-        # self.working_stack.clear()
-        # self.working_stack.append(mixing_hadrons[is_mixing])
-        # self.working_stack.append(wstack[is_stable_hadron])
         
-        # wstack = self.working_stack.valid()
+        self.working_stack.append(mixing_hadrons[is_mixing])
+        self.working_stack.append(wstack[is_stable_hadron])
         
-        # print(f"Wstack for interaction = {wstack.pid}")
+        wstack = self.working_stack.valid()
+        
+        print(f"Wstack for interaction = {wstack.pid}")
         
         
         self.xdepth_getter.get_decay_xdepth(wstack)
@@ -280,10 +270,6 @@ class CascadeDriver:
         self.children_stack.clear()
         self.rejection_stack.clear()
         
-        # print(f"Interaction stack:\npid = {self.inter_stack.valid().pid}")
-        # print(f"id = {self.inter_stack.valid().id}")
-        # input()
-        
         if len(self.inter_stack) == 0:
             return
         
@@ -293,10 +279,8 @@ class CascadeDriver:
                                                     failed_parents = self.rejection_stack)
         
         # Take only MCEq particles
-        valid_children = self.children_stack.valid()
-        is_mceq_particles = np.isin(valid_children.pid, self.pdg_lists.mceq_particles)
-        self.children_stack.clear()
-        self.children_stack.append(valid_children[is_mceq_particles])
+        is_mceq_particles = np.isin(self.children_stack.pid, self.pdg_lists.mceq_particles)
+        self.children_stack = self.children_stack[is_mceq_particles]
         
         self.id_generator.generate_ids(self.children_stack.valid().id)
         self.children_stack.valid().production_code[:] = 2

@@ -68,8 +68,6 @@ class MceqGridCollector:
     
     def _sdepth_bins(self, sdepth_start = 0, sdepth_end = 1095):
         
-        _calculate_integration_path
-        
         self.mceq_run._calculate_integration_path(int_grid=None, grid_var="X")
         
         sdepth_grid = np.cumsum(self.mceq_run.integration_path[1])
