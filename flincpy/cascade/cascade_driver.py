@@ -8,8 +8,12 @@ from propagation.particle_xdepths import DefaultXdepthGetter
 
 from process.hadron_inter import HadronInteraction
 from process.decay_driver import DecayDriver
+from utils.utils import suppress_std_streams
+
 import numpy as np
 import time
+
+
 
 
 
@@ -23,8 +27,11 @@ import time
 
 class InteractionModel:
     def __init__(self, model, initial_kinematics, target):
-        self.target = target
-        self.event_generator = model(initial_kinematics)
+        with suppress_std_streams():
+            self.target = target
+            self.event_generator = model(initial_kinematics)
+        
+        
 
 class CascadeDriver:
     def __init__(self, imodel):
