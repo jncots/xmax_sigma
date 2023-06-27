@@ -10,6 +10,7 @@ from process.hadron_inter import HadronInteraction
 from process.decay_driver import DecayDriver
 from utils.utils import suppress_std_streams
 
+from tqdm import tqdm
 import numpy as np
 import time
 
@@ -114,7 +115,14 @@ class CascadeDriver:
         self.initial_run = True    
         self.accumulate_runs = accumulate_runs           
     
-    def run(self):
+    
+    def run(self, nshowers = 1):
+        with suppress_std_streams(suppress_stderr=False):
+            for _ in tqdm(range(nshowers), total = nshowers):
+                self.run_once()
+    
+    
+    def run_once(self):
         
         self.working_stack.clear()
         self.decay_stack.clear()

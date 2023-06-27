@@ -107,7 +107,11 @@ class CascadeDriver:
         self.initial_run = True    
         self.accumulate_runs = accumulate_runs           
     
-    def run(self):
+    def run(self, nshowers = None):
+        
+    
+    
+    def run_once(self):
         
         self.working_stack.clear()
         self.decay_stack.clear()
