@@ -208,8 +208,8 @@ class CascadeDriver:
         
         particle_number = above_threshold_idx.size + is_decaying_idx.size + is_stable_idx.size
         
-        if above_threshold_idx.size < len(wstack):
-            print(f"Above threshold = {above_threshold_idx.size/len(wstack)*100} %")
+        # if above_threshold_idx.size < len(wstack):
+        #     print(f"Above threshold = {above_threshold_idx.size/len(wstack)*100} %")
         
         assert particle_number == len(wstack), (
                 "Number of distributed particles not equal to number of initial particles")
@@ -220,14 +220,20 @@ class CascadeDriver:
     def filter_by_slant_depth(self):
         wstack = self.working_stack_filter.valid()
         
-        # is_stable_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_stable_mceq)
-        # is_decaying_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_decay_mceq)
-        # is_mixing_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_mix_mceq)
-        # is_stable_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_stable_mceq)
+        is_stable_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_stable_mceq)
+        is_decaying_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_decay_mceq)
+        is_mixing_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_mix_mceq)
+        is_stable_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_stable_mceq)
+        
+        # non_mceq_part = np.logical_not(np.isin(wstack.pid, self.pdg_lists.mceq_particles))
+        # non_mceq_part_idx = np.where(non_mceq_part)[0]
+        
+        # # if len(non_mceq_part_idx) > 0:
+        # #     print(f"Non mceq_part = {wstack.pid[non_mceq_part_idx]}")
         
         
         # self.final_stack.append(wstack[is_stable_lepton])
-        # self.decay_stack.append(wstack[is_decaying_lepton])
+        # # self.decay_stack.append(wstack[is_decaying_lepton])
         
         # mixing_hadrons = wstack[is_mixing_hadron]
         # is_mixing = self.pdg_lists.hadron_emix[mixing_hadrons.pid] < mixing_hadrons.energy
@@ -238,10 +244,13 @@ class CascadeDriver:
         # self.working_stack.clear()
         # self.working_stack.append(mixing_hadrons[is_mixing])
         # self.working_stack.append(wstack[is_stable_hadron])
+        # self.working_stack.append(wstack[is_decaying_lepton])
+        # self.working_stack.append(wstack[non_mceq_part_idx])
         
         # wstack = self.working_stack.valid()
         
         # print(f"Wstack for interaction = {wstack.pid}")
+        # print(f"Wstack for interaction energy = {wstack.energy}")
         
         
         self.xdepth_getter.get_decay_xdepth(wstack)
@@ -286,6 +295,8 @@ class CascadeDriver:
         dstack_portion = wstack[dstack_true]
         dstack_portion.xdepth_stop[:] = dstack_portion.xdepth_decay
         self.decay_stack.append(dstack_portion)
+        
+        self.working_stack.clear()
 
         
         
@@ -308,10 +319,10 @@ class CascadeDriver:
                                                     failed_parents = self.rejection_stack)
         
         # Take only MCEq particles
-        valid_children = self.children_stack.valid()
-        is_mceq_particles = np.isin(valid_children.pid, self.pdg_lists.mceq_particles)
-        self.children_stack.clear()
-        self.children_stack.append(valid_children[is_mceq_particles])
+        # valid_children = self.children_stack.valid()
+        # is_mceq_particles = np.isin(valid_children.pid, self.pdg_lists.mceq_particles)
+        # self.children_stack.clear()
+        # self.children_stack.append(valid_children[is_mceq_particles])
         
         self.id_generator.generate_ids(self.children_stack.valid().id)
         self.children_stack.valid().production_code[:] = 2
@@ -327,8 +338,21 @@ class CascadeDriver:
         self.archival_stack.append(parents)
         
         if len(self.rejection_stack) > 0:
-            self.archival_stack.append(self.rejection_stack)
-            self.decay_stack.append(self.rejection_stack)
+            rstack = self.rejection_stack.valid()
+            self.archival_stack.append(rstack)
+            
+            # is_stable_lepton = np.isin(rstack.pid, self.pdg_lists.leptons_stable_mceq)
+            # is_decaying_lepton = np.isin(rstack.pid, self.pdg_lists.leptons_decay_mceq)
+            # is_mixing_hadron = np.isin(rstack.pid, self.pdg_lists.hadrons_mix_mceq)
+            # is_stable_hadron = np.isin(rstack.pid, self.pdg_lists.hadrons_stable_mceq)
+        
+        
+            # self.final_stack.append(rstack[is_stable_lepton])
+            # self.final_stack.append(rstack[is_mixing_hadron])
+            # self.final_stack.append(rstack[is_stable_hadron])
+            # self.decay_stack.append(rstack[is_decaying_lepton])
+            
+            self.decay_stack.append(rstack)
             
             rej_muons = np.where(np.isin(self.rejection_stack.valid().pid, 
                                          np.array([-13, 13], dtype = np.int32)))[0]
@@ -410,9 +434,6 @@ class CascadeDriver:
     def get_final_particles(self):
         return self.final_stack        
     
-if __name__ == "__main__":
-    cas_driver = CascadeDriver(threshold_energy = 1e3)
-    cas_driver.run(pdg = 2212, energy = 1e7)
 
     
 

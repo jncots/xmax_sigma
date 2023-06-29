@@ -10,21 +10,8 @@ class HadronInteraction:
         self.event_generator = imodel.event_generator
         
         # Get a global PdgPidMap object
-        # ToDo use the same object in cross section tabulation 
+        # ToDo use the same object as in cross section tabulation 
         self.pmap = xdepth_getter.particle_properties.pmap
-        
-        # self.target = chromo.kinematics.CompositeTarget([("N", 0.78), ("O", 0.22)])
-        # # self.target = (14, 7)
-        # ekin = chromo.kinematics.FixedTarget(1e7, "O16", self.target)
-        # self.event_generator = chromo.models.DpmjetIII191(ekin)
-        
-        # self.event_generator = chromo.models.EposLHC(ekin)
-        # self.event_generator = chromo.models.Sibyll23d(ekin)
-        # self.event_generator._ecm_min = 2 # GeV
-        # chromo.models.Sibyll23d(ekin)
-        # self.event_generator.set_unstable(111)
-        # self.event_generator.set_unstable(-211)
-        # self.event_generator.set_unstable(211)
     
     
     def run_event_generator(self, parents, children, failed_parents):
@@ -55,29 +42,10 @@ class HadronInteraction:
                 continue    
             
             
-            event = next(self.event_generator(1)).final_state()
-            # try:        
-            #     event = next(self.event_generator(1)).final_state()
-            # except RuntimeError as er:
-            #     pvalid.production_code[i] = 333
-            #     continue
-                # print(er)
-                # print(f"pdg_proj = {self.event_generator.kinematics.p1}" 
-                #       f" and energy = {self.event_generator.kinematics.elab}")
-                # print(self.event_generator.kinematics)   
-                
+            event = next(self.event_generator(1)).final_state()                
             number_of_interactions += 1
             generation_num = pvalid.generation_num[i] + 1
-            
-            # if len(np.where(event.pid == 8)[0]) > 0:
-            #     print(f"event.pid = {event.pid}")
-            #     print(f"event.status = {event.status}")
-            #     print(f"pdg_proj = {self.event_generator.kinematics.p1}" 
-            #           f" and energy = {self.event_generator.kinematics.elab}")
-            #     print(self.event_generator.kinematics) 
-            #     self.event_generator._lib.dt_evtout(6)
-            #     print("Here STOP")
-            
+                        
             # Filter out only known pdgs, because some models
             # (such as DpmjetIII) sometimes produce
             # particles with unknown pdgs (unknown to 
@@ -94,13 +62,6 @@ class HadronInteraction:
                             parent_id = pvalid.id[i],
                             production_code = 777)
             
-            # print("\n")
-            # print(f"event.pid = {event.pid}")
-            # print(f"event.pid = {event.en},\nsum = {np.sum(event.en)}, init = {pvalid.energy[i]}")
-            # print(f"event.pid = {event.status}")
-            # print(self.event_generator.kinematics)
-            # print(f"Interaction: energy conservation {100*(np.sum(event.en) - pvalid.energy[i])/pvalid.energy[i]} %\n")
-        
         failed_parents.append(pvalid[np.where(pvalid.production_code > 0)])
         
         return number_of_interactions

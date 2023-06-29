@@ -194,7 +194,13 @@ class MceqGridCollector:
     def state_vectors(self):
         shape = self.shower_dist.shape
         return self.shower_dist.reshape(shape[0], shape[1]*shape[2])
-                
+    
+    
+    def clear(self):
+        """Zero the container
+        """
+        self._init_shower_dist()
+                    
         
     def shower_on_grid(self, pdg = None):
         """Return the resulting distribution on
@@ -220,5 +226,20 @@ class MceqGridCollector:
                     valid_mceq_idx)              # list of valid mceq particle indicies
         
 
+    def number_particles_on_grid(self):
+        """Number of particles on a grid should conserve"""
+        return np.sum(self.shower_dist * self.energy_widths)
+    
+    def tot_energy_on_grid(self):
+        """Energy on a grid should conserve"""
+        return np.sum(self.shower_dist 
+                      * self.energy_widths
+                      * self.energy_grid)
+        
+    def tot_energy2_on_grid(self):
+        """Energy**2 on a grid should conserve"""
+        return np.sum(self.shower_dist 
+                      * self.energy_widths
+                      * self.energy_grid**2)    
         
         

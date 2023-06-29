@@ -95,6 +95,13 @@ class MCEQDistributions():
                 pass
                 # print(ex)    
 
+        # print(f"part_long_spectra.keys = {[k for k in part_long_spectra.keys()]}")
+        
+        # all_category_names = [k for k in part_long_spectra.keys()]
+        # for cat_name in all_category_names:
+        #     if "_mu" in cat_name:
+        #         print(cat_name)
+
 
         self.flux_depth = dict()
         for ixdepth in range(len(self.slant_depths)):
@@ -106,12 +113,85 @@ class MCEQDistributions():
                 self.flux[group_name] = None
                 for pname in pnames[1:]:
                     if self.flux[group_name] is None:
-                        self.flux[group_name] = part_long_spectra[pname][ixdepth]
+                        try:
+                            self.flux[group_name] = part_long_spectra[pname][ixdepth]
+                        except:
+                            self.flux[group_name] = 0  
                     else:
-                        self.flux[group_name] += part_long_spectra[pname][ixdepth]
+                        try:
+                            self.flux[group_name] += part_long_spectra[pname][ixdepth]
+                        except:
+                            self.flux[group_name] += 0    
                 
                 self.flux[group_name] = self.flux[group_name] * self.e_widths
 
             self.flux_depth[ixdepth] = self.flux
         
         self.flux = self.flux_depth
+        
+        
+class MCEQExtractDists():
+    def __init__(self, mceq_run, 
+                 pname_tuples,
+                 slant_depths):
+        self.mceq_run = mceq_run
+        
+        #obtain energy grid (fixed) of the solution for the x-axis of the plots
+        self.e_grid = mceq_run.e_grid
+        self.e_widths = mceq_run.e_widths
+        self.e_bins = mceq_run.e_bins
+        
+        self.slant_depths = np.array(slant_depths)
+
+        if mceq_run.density_model.max_X < np.max(self.slant_depths):
+            raise ValueError(f"Maximum slant_xdepth = {mceq_run.density_model.max_X}")
+
+        # Populate longitudinal spectra for all particles:
+        part_long_spectra = {}
+        for p in mceq_run.pman.all_particles:
+            # print(f"Spectrum for {p.name}")
+            part_long_xdepth = {}
+            try:
+                for ixdepth in range(len(self.slant_depths)):
+                    part_long_xdepth[ixdepth] = mceq_run.get_solution(p.name, grid_idx=ixdepth)
+                part_long_spectra[p.name] = part_long_xdepth    
+            except Exception as ex:
+                pass
+                # print(ex)    
+
+        # print(f"part_long_spectra.keys = {[k for k in part_long_spectra.keys()]}")
+        
+        # all_category_names = [k for k in part_long_spectra.keys()]
+        # for cat_name in all_category_names:
+        #     if "_mu" in cat_name:
+        #         print(cat_name)
+
+
+        self.flux_depth = dict()
+        for ixdepth in range(len(self.slant_depths)):
+            
+            self.flux = dict()
+            for pnames in pname_tuples:
+                
+                group_name = pnames[0]
+                self.flux[group_name] = None
+                for pname in pnames[1:]:
+                    if self.flux[group_name] is None:
+                        try:
+                            self.flux[group_name] = part_long_spectra[pname][ixdepth]
+                        except:
+                            self.flux[group_name] = 0  
+                    else:
+                        try:
+                            self.flux[group_name] += part_long_spectra[pname][ixdepth]
+                        except:
+                            self.flux[group_name] += 0    
+                
+                self.flux[group_name] = self.flux[group_name] * self.e_widths
+
+            self.flux_depth[ixdepth] = self.flux
+        
+        self.flux = self.flux_depth
+        
+        
+            

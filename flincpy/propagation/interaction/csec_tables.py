@@ -1,6 +1,7 @@
-from MCEq.data import InteractionCrossSections, HDF5Backend
-from MCEq.core import MCEqRun
-import crflux.models as pm
+import MCEq
+from MCEq.misc import normalize_hadronic_model_name
+from MCEq.data import HDF5Backend, Interactions, InteractionCrossSections, Decays
+from MCEq.particlemanager import ParticleManager
 import numpy as np
 
 
@@ -62,22 +63,42 @@ class CrossSectionTableMCEq:
     def __init__(self, interaction_model="DPMJETIII191", cs_xdepth_conv = CSXdepthConversion()):
         self.interaction_model = interaction_model
         self.cs_xdepth_conv = cs_xdepth_conv
-        self.mceq_run = MCEqRun(
-        #provide the string of the interaction model
-        interaction_model=self.interaction_model,
-        #primary cosmic ray flux model
-        primary_model = (pm.HillasGaisser2012, "H3a"),
-        # Zenith angle in degrees. 0=vertical, 90=horizontal
-        theta_deg=0.0
-        )
-
-        hdf5_backend = HDF5Backend()
-        self.interaction_cs = InteractionCrossSections(hdf5_backend, self.interaction_model)
+        
+        self._initialize_mceq_data(interaction_model)
         self.set_energy_grid()
+        
+    def _initialize_mceq_data(self, interaction_model):
+        """This is initialization of _int_cs and _pman required for 
+        cross-section tabulation
+
+        Args:
+            interaction_model: e.g. "DPMJETIII191"
+        """
+        interaction_model = normalize_hadronic_model_name(interaction_model)
+
+        medium = MCEq.config.interaction_medium
+        _mceq_db = HDF5Backend(medium=medium)
+
+        _interactions = Interactions(mceq_hdf_db=_mceq_db)
+        _int_cs = InteractionCrossSections(mceq_hdf_db=_mceq_db)
+        _int_cs.load(interaction_model)
+        _decays = Decays(mceq_hdf_db=_mceq_db)
+
+        _interactions.load(interaction_model)
+        _decays.load(parent_list=_interactions.particles)
+        _particle_list = _interactions.particles + _decays.particles
+        self._pman = ParticleManager(
+            _particle_list, 
+            _mceq_db.energy_grid, 
+            _int_cs, 
+            medium
+        )
+        
+        self._int_cs = _int_cs
 
     def set_energy_grid(self, *, emin=1e-1, emax=1e11, npoints=1000):
         pid_size = 0
-        for p in self.mceq_run.pman.all_particles:
+        for p in self._pman.all_particles:
             if p.is_hadron:
                 pid_size += 1
                 
@@ -89,13 +110,13 @@ class CrossSectionTableMCEq:
     def _tabulate(self):
         pid = 0
         self.pid_pdg = dict()  
-        for p in self.mceq_run.pman.all_particles:
+        for p in self._pman.all_particles:
             if p.is_hadron:
                 pdg = p.pdg_id[0]
-                print(f"Tabulate cross-section for {p.name}({pdg})")
+                # print(f"Tabulate cross-section for {p.name}({pdg})")
                 self.sigma_tab[pid, :] = np.interp(self.energy_grid, 
-                                            self.mceq_run._int_cs.energy_grid.c + p.mass, 
-                                            self.mceq_run._int_cs.get_cs(pdg, True))
+                                            self._int_cs.energy_grid.c + p.mass, 
+                                            self._int_cs.get_cs(pdg, True))
                 
                 # If some points have -0.0 and other +0.0, then 
                 # interpolation can give nan when xdepth is calculated
