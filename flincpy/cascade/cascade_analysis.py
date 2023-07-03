@@ -151,12 +151,12 @@ class CascadeAnalysis:
     def energy_conservation(self):     
         etot = np.sum(self.energy_data)/self.cascade_driver.runs_number
         init_energy = self.cascade_driver.initial_energy
-        conservation = (init_energy - etot)/init_energy
+        conservation = (etot - init_energy)/init_energy
         
         print("\nEnergy conservation in cascade:")
         print(f"  Initial energy = {init_energy:.5e} GeV")
         print(f"  Energy in final particles = {etot:.5e} GeV")
-        print(f"  Relative loss(+)/gain(-) {conservation:.3e}")
+        print(f"  Relative gain(+)/loss(-) {conservation:.3e}")
     
     
     # def particle_flight(self):

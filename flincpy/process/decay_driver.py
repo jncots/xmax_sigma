@@ -32,21 +32,21 @@ class DecayDriver:
         self.set_decaying_pdgs()
     
     def set_decaying_pdgs(self, decaying_pdgs=None, stable_pdgs=None):
-        
+        """
+        Set particles that should decay by pythia8
+        """
+          
         if decaying_pdgs is not None:
             self._decaying_pdgs = decaying_pdgs
             
         if stable_pdgs is not None:
             self._stable_pdgs = stable_pdgs    
-            
-        # Decay particles in decaying_pdg list   
+     
         if self._decaying_pdgs is not None:
-            # print(f"Decaying pdgs = {self._decaying_pdgs}")
             for pdg in self._decaying_pdgs:
                 self._pythia.particleData.mayDecay(pdg, True)
                 
         if self._stable_pdgs is not None:
-            # print(f"Decaying pdgs = {self._decaying_pdgs}")
             for pdg in self._stable_pdgs:
                 self._pythia.particleData.mayDecay(pdg, False)      
         
@@ -59,6 +59,8 @@ class DecayDriver:
         """
         slice_to_fill = np.where(pstack.valid().filter_code != FilterCode.XD_DECAY_ON.value)[0]
         # stack_to_fill is a copy, because of advanced indexing in numpy
+        
+        # print(f"slice_to_fill = {slice_to_fill}")
         stack_to_fill = pstack[slice_to_fill]
         self._xdepth_getter.get_decay_xdepth(stack_to_fill)
         pstack[slice_to_fill] = stack_to_fill

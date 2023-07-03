@@ -1,3 +1,11 @@
+if __name__ == "__main__":
+    from pathlib import Path
+    import sys
+    print(Path(__file__).parents[1])
+    sys.path.append(str(Path(__file__).parents[1]))
+
+
+
 from data_structs.particle_array import ParticleArray
 # from casdata_structs.particle_array import ParticleArray
 from propagation.tab_pproperties import TabulatedParticleProperties
@@ -13,18 +21,37 @@ class DecayXdepth:
         self.xd_tab = xdepth_on_table
 
     def get_xdepth(self, pdg, energy, xdepth):
+        
+        # Check if particle doesn't decay
+        ctau = self.pp_tab.ctau(pdg)        
+        is_inf = ctau == np.inf
+        inf_flag = is_inf.any()
+        
+        # Consider only decaying particles
+        if inf_flag:
+            not_inf = np.logical_not(is_inf)
+            next_xdepth = np.empty_like(xdepth)
+            # Stable particles decay at X = np.inf
+            next_xdepth[is_inf] = np.inf
+            
+            ctau = ctau[not_inf]
+            pdg = pdg[not_inf]
+            energy = energy[not_inf]
+            xdepth = xdepth[not_inf]
+            
+            
         mass = self.pp_tab.mass(pdg)
-        gamma = np.divide(
-            energy, mass, out=np.full_like(mass, np.inf), where=mass != 0
-        )
+        gamma = energy/mass
         bgamma = np.sqrt((gamma + 1) * (gamma - 1))
         rnd = -np.log(1 - np.random.rand(len(pdg)))
-        length = rnd * bgamma * self.pp_tab.ctau(pdg)
+        length = rnd * bgamma * ctau
         
-        # print(f"length = {length/1e5} km")
-        # print(f"length_avg = {bgamma * self.pp_tab.ctau(pdg)/1e5} km")
-        # length = bgamma * self.pp_tab.ctau(pdg)
-        return self.xd_tab.add_len2x(xdepth, length)
+        if inf_flag:
+            # Get result for decaying particles
+            next_xdepth[not_inf] = self.xd_tab.add_len2x(xdepth, length)
+            return next_xdepth
+        else:
+            return self.xd_tab.add_len2x(xdepth, length)
 
 
 if __name__ == "__main__":
@@ -33,8 +60,8 @@ if __name__ == "__main__":
 
     particle_stack.push(
         pid=np.array([111, 22, 111, 13, -13, 2212]),
-        energy=np.array([2e10, 2e0, 2e10, 1e0, 1e0, 1e0]),
-        xdepth=np.array([100e0, 0, 100, 0, 0, 0]),
+        energy=np.array([2e10, 2e0, 2e10, 5e1, 1e0, 1e0]),
+        xdepth=np.array([0, 0, 0, 0, 0, 0]),
     )
 
     print(particle_stack.xdepth[0 : len(particle_stack)])

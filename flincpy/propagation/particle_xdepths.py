@@ -49,8 +49,9 @@ class NextInterXdepth:
         # cs_table.add_pdgs(PdgLists().longer_pi0_to_mceq)
         self.inter_xdepth = CrossSectionOnTable(cs_table)
         self.max_xdepth = xdepth_on_table.xdepth_conversion.get_max_xdepth()
+        self.known_pdg_ids = self.inter_xdepth.pmap.known_pdg_ids
         self._stop_xdepth = None
-        
+    
     
     def set_stop_xdepth(self, stop_xdepth):
         self._stop_xdepth = stop_xdepth    

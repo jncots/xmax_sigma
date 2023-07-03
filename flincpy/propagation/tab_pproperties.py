@@ -12,9 +12,29 @@ class ParticlePropertiesParticle:
     
     def __init__(self):
         self.all_particles_dict = {p.pdgid: p for p in Particle.findall()}
-        self.pmap = PdgPidMap({int(pdgid) : pid for pid, 
+        self.pdg2pid_map = {int(pdgid) : pid for pid, 
                                pdgid in enumerate(self.all_particles_dict)}
-                             )
+        self.pmap = PdgPidMap(self.pdg2pid_map)
+        
+        self._split_stable_decaying()
+        
+
+    def _split_stable_decaying(self):
+        stable = []
+        decaying = []
+        decaying_ctau0 = {}
+        for pdg in self.pdg2pid_map:
+            ctau = self.all_particles_dict[pdg].ctau
+            if (ctau is None) or math.isinf(ctau):
+                stable.append(pdg)   
+            else: 
+                decaying.append(pdg)
+                decaying_ctau0[pdg] = np.float64(ctau * 1e-1)     
+         
+        self.stable = np.array(stable)
+        self.decaying = np.array(decaying)
+        self.decaying_ctau0 = decaying_ctau0
+            
 
     def get_ctau(self, pdg):
         """Returns c*tau, in cm"""

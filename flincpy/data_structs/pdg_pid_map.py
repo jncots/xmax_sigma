@@ -177,7 +177,12 @@ def pdg2mceq_idx_map(mceq_run):
         mceq_run (MCEq_Run): initialized MCEq_Run object
     """
     pdg_idx_map = {}
+    print("MCEq pdgs:")
+    # for mceq_run.pman.all_particles
+    
+    
     for pdg_mceq, idx_mceq in mceq_run.pman.pdg2mceqidx.items():
+        print(f"pdg_mceq = {pdg_mceq}, mceq_idx = {idx_mceq}")
         # Filter only "ordinary" particles
         if pdg_mceq[1] == 0 and abs(pdg_mceq[0]) < 10000 and idx_mceq > -1:  
             # print(pdg_mceq[0], idx_mceq)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from data_structs.particle_array import ParticleArray
+from data_structs.particle_array import ParticleArray, FilterCode
 from data_structs.pdg_pid_map import PdgLists
 from data_structs.id_generator import IdGenerator
 
@@ -8,7 +8,7 @@ from propagation.particle_xdepths import DefaultXdepthGetter
 
 from process.hadron_inter import HadronInteraction
 from process.decay_driver import DecayDriver
-from utils.utils import suppress_std_streams
+from utils.utils import suppress_std_streams, unique_pdgs_np
 
 from tqdm import tqdm
 import numpy as np
@@ -41,13 +41,14 @@ class CascadeDriver:
         self.pdg_lists = PdgLists()
         
         
-        self.final_stack_decay = ParticleArray()
+        self.final_decay_stack = ParticleArray()
         self.final_stack = ParticleArray()
         self.archival_stack = ParticleArray()
         self.generated_stack = ParticleArray()
         
         self.working_stack = ParticleArray()
-        self.working_stack_filter = ParticleArray()
+        self.spare_working_stack = ParticleArray()
+        self.propagating_stack = ParticleArray()
         self.decay_stack = ParticleArray()
         self.inter_stack = ParticleArray()
         self.rejection_stack = ParticleArray()
@@ -59,43 +60,62 @@ class CascadeDriver:
         self.decay_driver = DecayDriver(self.xdepth_getter)
         self.hadron_interaction = HadronInteraction(self.imodel, self.xdepth_getter)
         
-        
-    def set_decaying_pdgs(self, mceq_decaying_pdgs):
-        
-        # Force decaying pdgs are particles which do not present in mceq
-        # and should decay event if they hit final conditions
-        # Every particle which is not in mceq
-        self.force_decaying_pdgs = (self.pdg_lists.pdgs_below_abs6000[np.where(np.logical_not(
-                            np.isin(self.pdg_lists.pdgs_below_abs6000, self.pdg_lists.mceq_particles)))[0]])
-        
-        # Natural decaying pdgs are particles which present in mceq
-        # and can be present in final stack
-        # Mceq particles that should decay
-        self.natural_decaying_pdgs = np.array([mceq_decaying_pdgs], dtype = np.int32)
+        self.interacting_pdgs = self.xdepth_getter.next_inter.known_pdg_ids
+        self.phys_stable_pdgs = self.xdepth_getter.particle_properties.stable
+        self.phys_decaying_pdgs = self.xdepth_getter.particle_properties.decaying
         
         
-        # Mceq particles that is stable
-        self.stable_pdgs = (self.pdg_lists.mceq_particles[np.where(np.logical_not(
-                            np.isin(self.pdg_lists.mceq_particles, self.natural_decaying_pdgs)))[0]])
-        
-        # Make all pdgs decaying except the ones defined as stable
-        decaying_pdgs = (self.pdg_lists.pdgs_below_abs6000[np.where(np.logical_not(
-                            np.isin(self.pdg_lists.pdgs_below_abs6000, self.stable_pdgs)))[0]])
+    def set_decaying_pdgs(self, stable_pdgs = [],
+                                decay_not_interact_pdgs = [],
+                                decay_when_final_pdgs = [],
+                                decay_at_vertex_pdgs = []):
         
         
-        self.decay_driver.set_decaying_pdgs(decaying_pdgs=decaying_pdgs,
-                                            stable_pdgs=self.stable_pdgs)
-    
+        self.stable_pdgs = unique_pdgs_np(stable_pdgs)
+        self.decay_not_interact_pdgs = unique_pdgs_np(decay_not_interact_pdgs)
+        self.decay_when_final_pdgs = unique_pdgs_np(decay_when_final_pdgs)  
+        self.decay_at_vertex_pdgs = unique_pdgs_np(decay_at_vertex_pdgs)
+        
+        is_final_pdgs = np.logical_not(np.isin(self.pdg_lists.mceq_particles, 
+                                                                self.decay_when_final_pdgs))
+        self.final_pdgs = unique_pdgs_np(self.pdg_lists.mceq_particles[is_final_pdgs])
+        
+        
+        self._check_for_duplicates()    
+        # By default all particles that are physically can decay will decay in pythia
+        # pdgs in stable_pdgs will not be decayed in pythia
+        self.decay_driver.set_decaying_pdgs(decaying_pdgs=self.phys_decaying_pdgs,
+                                            stable_pdgs=self.stable_pdgs)  
+        
+    def _check_for_duplicates(self):
+        """Raise exception if any pdg id is more than in one
+        mutually exclusive arrays
+        """
+        all_pdgs = np.concatenate([self.stable_pdgs, 
+                       self.decay_not_interact_pdgs, 
+                       self.decay_when_final_pdgs,
+                       self.decay_at_vertex_pdgs])
+        
+        values, counts = np.unique(all_pdgs, return_counts=True)
+        duplicates = values[counts > 1]
+        if len(duplicates) > 0:
+            raise ValueError("Duplicates in mutually exclusive arrays for:\n"
+                              f"pdg_id={duplicates} are met\n"
+                              f"times={counts[counts > 1]}")
+        
     
     
     def simulation_parameters(self, *, pdg, energy, 
                               threshold_energy,
                               zenith_angle,
-                              mceq_decaying_pdgs,
                               xdepth = 0,
                               stop_height = 0,
                               accumulate_runs = False,
-                              reset_ids = False):
+                              reset_ids = False,
+                              stable_pdgs = [],
+                              decay_not_interact_pdgs = [],
+                              decay_when_final_pdgs = [],
+                              decay_at_vertex_pdgs = []):
             
         self.initial_pdg = pdg
         self.initial_energy = energy
@@ -103,11 +123,16 @@ class CascadeDriver:
         self.initial_xdepth = xdepth
         
         self.set_zenith_angle(zenith_angle)
-        self.set_decaying_pdgs(mceq_decaying_pdgs)
+        self.set_decaying_pdgs(stable_pdgs,
+                                decay_not_interact_pdgs,
+                                decay_when_final_pdgs,
+                                decay_at_vertex_pdgs)
         
         self.stop_xdepth = self.xdepth_getter.xdepth_conversion.convert_h2x(stop_height * 1e5)
         self.xdepth_getter.set_stop_xdepth(self.stop_xdepth)
         print(f"stop depth = {self.stop_xdepth}")
+        print(f"Interacting pdgs = {self.interacting_pdgs}"
+              f"Number = {len(self.interacting_pdgs)}")
         
         if reset_ids:
             self.id_generator = IdGenerator()
@@ -129,7 +154,7 @@ class CascadeDriver:
                 
         if self.initial_run:
             self.final_stack.clear()
-            self.final_stack_decay.clear()
+            self.final_decay_stack.clear()
             self.archival_stack.clear()
             self.generated_stack.clear()
             self.number_of_decays = 0
@@ -158,6 +183,7 @@ class CascadeDriver:
             # print(f"\r{iloop} Number of inter = {self.number_of_interactions}"
             #       f" number of decays = {self.number_of_decays}")
             
+            self.filter_out_leptons()
             self.filter_by_energy()
             self.filter_by_slant_depth()         
             self.run_hadron_interactions()
@@ -172,127 +198,116 @@ class CascadeDriver:
         self.runs_number += 1
     
     
-    def filter_by_energy(self):   
+    def filter_out_leptons(self):
         
         wstack = self.working_stack.valid()
+        
+        is_leptons = np.isin(wstack.pid, self.pdg_lists.leptons_mceq)
+        self.final_stack.append(wstack[is_leptons])
+        
+        # Split other particles to interacting and only decaying 
+        is_not_leptons = np.logical_not(is_leptons)
+        is_interacting = np.isin(wstack.pid, self.interacting_pdgs)
+        is_not_interacting = np.logical_not(is_interacting)
+        
+        is_interacting_hadrons = np.logical_and(is_not_leptons, is_interacting)
+        is_not_interacting_hadrons = np.logical_and(is_not_leptons, is_not_interacting)
+        
+        
+        self.decay_stack.append(wstack[is_not_interacting_hadrons])
+        self.spare_working_stack.clear()
+        self.spare_working_stack.append(wstack[is_interacting_hadrons])
+        self.working_stack.clear()
+        
+        
+    
+    def filter_by_energy(self):   
+        
+        wstack = self.spare_working_stack.valid()
         
         # Put in the working stack particles with above threshold energy
         is_above_threshold = wstack.energy > self.threshold_energy
         above_threshold_idx = np.where(is_above_threshold)[0]
-        
-        # TODO
-        # Come up with a better name for a stack instead of 
-        # self.working_stack_filter
-        # ---
-        self.working_stack_filter.clear()
-        self.working_stack_filter.append(wstack[above_threshold_idx])
+        self.propagating_stack.clear()
+        self.propagating_stack.append(wstack[above_threshold_idx])
         
         
         # Separate the particles that should decay before moving to final_stack
         # from particles that are already in final state and should move to final_stack
         is_below_threshold = np.logical_not(is_above_threshold)
+        is_final = np.isin(wstack.pid, self.final_pdgs)
+        is_should_decay = np.logical_not(is_final)
         
-        # TODO
-        # Change here to: 
-        # is_stable_final = np.isin(wstack.pid, self.pdg_lists.mceq_particles)
-        # ---
-        is_decaying = np.isin(wstack.pid, self.force_decaying_pdgs)
-        is_stable = np.logical_not(is_decaying)
-        
-        is_decaying_idx = np.where(np.logical_and(is_below_threshold, is_decaying))[0]
-        is_stable_idx = np.where(np.logical_and(is_below_threshold, is_stable))[0]
-
-        self.final_stack_decay.append(wstack[is_decaying_idx])
-        self.final_stack.append(wstack[is_stable_idx])     
+        self.final_stack.append(wstack[np.logical_and(is_below_threshold, is_final)])
+        self.final_decay_stack.append(wstack[np.logical_and(is_below_threshold, is_should_decay)])   
         
         
-        particle_number = above_threshold_idx.size + is_decaying_idx.size + is_stable_idx.size
+        # particle_number = above_threshold_idx.size + is_decaying_idx.size + is_stable_idx.size
         
         # if above_threshold_idx.size < len(wstack):
-        #     print(f"Above threshold = {above_threshold_idx.size/len(wstack)*100} %")
+        #     print(f"Above threshold = {above_threshold_idx.size/len(wstack)*100} %,"
+        #           f" {above_threshold_idx.size}/{len(wstack)}")
+            
+        #     print(f"Above th = {above_threshold_idx.size}")  
+        #     print(f"is_decaying = {is_decaying_idx.size}, pid = {wstack[is_decaying_idx].pid}")  
+        #     print(f"is_stable_idx = {is_stable_idx.size}")  
+            
         
-        assert particle_number == len(wstack), (
-                "Number of distributed particles not equal to number of initial particles")
+        # assert particle_number == len(wstack), (
+        #         "Number of distributed particles not equal to number of initial particles")
         
         self.working_stack.clear()
     
     
     def filter_by_slant_depth(self):
-        wstack = self.working_stack_filter.valid()
         
-        is_stable_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_stable_mceq)
-        is_decaying_lepton = np.isin(wstack.pid, self.pdg_lists.leptons_decay_mceq)
-        is_mixing_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_mix_mceq)
-        is_stable_hadron = np.isin(wstack.pid, self.pdg_lists.hadrons_stable_mceq)
+        if len(self.propagating_stack) == 0:
+            self.inter_stack = None
+            return
         
-        # non_mceq_part = np.logical_not(np.isin(wstack.pid, self.pdg_lists.mceq_particles))
-        # non_mceq_part_idx = np.where(non_mceq_part)[0]
+        pstack = self.propagating_stack.valid()    
         
-        # # if len(non_mceq_part_idx) > 0:
-        # #     print(f"Non mceq_part = {wstack.pid[non_mceq_part_idx]}")
-        
-        
-        # self.final_stack.append(wstack[is_stable_lepton])
-        # # self.decay_stack.append(wstack[is_decaying_lepton])
-        
-        # mixing_hadrons = wstack[is_mixing_hadron]
-        # is_mixing = self.pdg_lists.hadron_emix[mixing_hadrons.pid] < mixing_hadrons.energy
-        # is_only_decaying = np.logical_not(is_mixing)
-        
-        # self.decay_stack.append(mixing_hadrons[is_only_decaying])
-        
-        # self.working_stack.clear()
-        # self.working_stack.append(mixing_hadrons[is_mixing])
-        # self.working_stack.append(wstack[is_stable_hadron])
-        # self.working_stack.append(wstack[is_decaying_lepton])
-        # self.working_stack.append(wstack[non_mceq_part_idx])
-        
-        # wstack = self.working_stack.valid()
-        
-        # print(f"Wstack for interaction = {wstack.pid}")
-        # print(f"Wstack for interaction energy = {wstack.energy}")
-        
-        
-        self.xdepth_getter.get_decay_xdepth(wstack)
-        self.xdepth_getter.get_inter_xdepth(wstack)
+        self.xdepth_getter.get_decay_xdepth(pstack)
+        self.xdepth_getter.get_inter_xdepth(pstack)
         
         max_xdepth = self.stop_xdepth
                 
         # Sort particles at the surface
-        at_surface = np.logical_and(wstack.xdepth_inter >= max_xdepth, 
-                                    wstack.xdepth_decay >= max_xdepth)
+        at_surface = np.logical_and(pstack.xdepth_inter >= max_xdepth, 
+                                    pstack.xdepth_decay >= max_xdepth)
         
         not_at_surface = np.logical_not(at_surface)
         
-        should_decay = np.isin(wstack.pid, self.force_decaying_pdgs)
-        should_not_decay = np.logical_not(should_decay)
+        
+        should_not_decay = np.isin(pstack.pid, self.pdg_lists.mceq_particles)
+        should_decay = np.logical_not(should_not_decay)
         
         should_decay = np.where(np.logical_and(at_surface, should_decay))[0]
         should_not_decay = np.where(np.logical_and(at_surface, should_not_decay))[0]
         
         
         # Particles that should be decayed at surface
-        dfstack_portion = wstack[should_decay]
+        dfstack_portion = pstack[should_decay]
         dfstack_portion.xdepth_stop[:] = max_xdepth
         dfstack_portion.final_code[:] = 1
-        self.final_stack_decay.append(dfstack_portion)
+        self.final_decay_stack.append(dfstack_portion)
         
         # Particles that are already at their final stage
-        fstack_portion = wstack[should_not_decay]
+        fstack_portion = pstack[should_not_decay]
         fstack_portion.xdepth_stop[:] = max_xdepth
         fstack_portion.final_code[:] = 1
         self.final_stack.append(fstack_portion)
 
         # Sort particles which are still in the atmosphere
-        istack_true = np.logical_and(wstack.xdepth_inter < wstack.xdepth_decay, not_at_surface)
+        istack_true = np.logical_and(pstack.xdepth_inter < pstack.xdepth_decay, not_at_surface)
         istack_true = np.where(istack_true)[0]
-        istack_portion = wstack[istack_true]        
+        istack_portion = pstack[istack_true]        
         istack_portion.xdepth_stop[:] = istack_portion.xdepth_inter
         self.inter_stack = istack_portion
         
-        dstack_true = np.logical_and(wstack.xdepth_inter > wstack.xdepth_decay, not_at_surface)
+        dstack_true = np.logical_and(pstack.xdepth_inter > pstack.xdepth_decay, not_at_surface)
         dstack_true = np.where(dstack_true)[0]
-        dstack_portion = wstack[dstack_true]
+        dstack_portion = pstack[dstack_true]
         dstack_portion.xdepth_stop[:] = dstack_portion.xdepth_decay
         self.decay_stack.append(dstack_portion)
         
@@ -310,7 +325,7 @@ class CascadeDriver:
         # print(f"id = {self.inter_stack.valid().id}")
         # input()
         
-        if len(self.inter_stack) == 0:
+        if (self.inter_stack is None) or (len(self.inter_stack) == 0):
             return
         
         self.number_of_interactions += self.hadron_interaction.run_event_generator(
@@ -325,7 +340,8 @@ class CascadeDriver:
         # self.children_stack.append(valid_children[is_mceq_particles])
         
         self.id_generator.generate_ids(self.children_stack.valid().id)
-        self.children_stack.valid().production_code[:] = 2
+        chstack = self.children_stack.valid()
+        chstack.production_code[:] = 2
         
         self.generated_stack.append(self.children_stack)
         
@@ -336,6 +352,18 @@ class CascadeDriver:
         parents.valid().final_code[:] = 2
         # And record them in archival stack
         self.archival_stack.append(parents)
+        
+        self.working_stack.clear()
+        if len(self.decay_at_vertex_pdgs) > 0:
+            is_decay_at_vertex = np.isin(chstack.pid, self.decay_at_vertex_pdgs)
+            chstack.filter_code[is_decay_at_vertex] = FilterCode.XD_DECAY_ON.value
+            chstack.xdepth_decay[is_decay_at_vertex] = chstack.xdepth[is_decay_at_vertex]
+            self.decay_stack.append(chstack[is_decay_at_vertex])
+               
+            self.working_stack.append(chstack[np.logical_not(is_decay_at_vertex)])
+        else:
+            self.working_stack.append(chstack)
+                
         
         if len(self.rejection_stack) > 0:
             rstack = self.rejection_stack.valid()
@@ -352,6 +380,7 @@ class CascadeDriver:
             # self.final_stack.append(rstack[is_stable_hadron])
             # self.decay_stack.append(rstack[is_decaying_lepton])
             
+            
             self.decay_stack.append(rstack)
             
             rej_muons = np.where(np.isin(self.rejection_stack.valid().pid, 
@@ -363,9 +392,6 @@ class CascadeDriver:
                       f" xdepth_decay = {self.rejection_stack.xdepth_decay[rej_muons]}"
                       f" xdepth_inter = {self.rejection_stack.xdepth_inter[rej_muons]}")
         
-
-        self.working_stack.clear()
-        self.working_stack.append(self.children_stack)
 
     
     def run_particle_decay(self):
@@ -412,19 +438,20 @@ class CascadeDriver:
         
     def run_decay_at_surface(self):
         
-        # print(f"Run decay1, number = {len(self.final_stack_decay)}")
-        if len(self.final_stack_decay) == 0:
+        # print(f"Run decay1, number = {len(self.final_decay_stack)}")
+        if len(self.final_decay_stack) == 0:
             return
         
         # print("Run decay2")
         self.rejection_stack.clear()
         self.working_stack.clear()
         
-        self.number_of_decays += self.decay_driver.run_decay(self.final_stack_decay, 
+        self.number_of_decays += self.decay_driver.run_decay(self.final_decay_stack, 
                                                              decayed_particles=self.working_stack,
                                                              stable_particles=self.rejection_stack)
         
         
+        self.id_generator.generate_ids(self.working_stack.valid().id)
         self.final_stack.append(self.working_stack)
         self.final_stack.append(self.rejection_stack)
         

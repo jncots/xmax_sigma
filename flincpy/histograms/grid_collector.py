@@ -81,6 +81,12 @@ class MceqGridCollector:
     def _filter_valid(self, batch):
         mceq_idx = self.pdg2idx_mapper.get_pids(batch.pid)
         
+        unique, counts = np.unique(batch[mceq_idx == self.pdg2idx_mapper.none_value].pid, 
+                                   return_counts=True)
+        
+        print(f"Unique: {unique}\nCounts{counts}")
+        print(f"Known pdgs: {self.pdg2idx_mapper.known_pdg_ids}")
+        
         # Filter particles with pdgs present in mceq
         valid_mceq_batch = batch[np.where(mceq_idx != self.pdg2idx_mapper.none_value)[0]]
         

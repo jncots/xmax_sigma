@@ -1,3 +1,10 @@
+if __name__ == "__main__":
+    from pathlib import Path
+    import sys
+    print(Path(__file__).parents[2])
+    sys.path.append(str(Path(__file__).parents[2]))
+
+
 from propagation.slant_depth.xdepth_conversion import XdepthConversion
 # from xdepth_conversion import XdepthConversion
 import numpy as np
@@ -36,16 +43,18 @@ class XdepthOnTable:
             length_vec (np.array): delta length
         """
         length = np.interp(xdepth_vec, self.rev_xdepth, self.rev_length) - length_vec
+        # print(self.length)
+        # print(self.xdepth)
         # print(f"length_start = {np.interp(xdepth_vec, self.rev_xdepth, self.rev_length)/1e5} km")
-        # print(f"length_minus = {length_vec/1e5} km")
+        # print(f"length_minus = {length/1e5} km")
         # print(f"final_length = {length/1e5} km")
-        return np.interp(length, self.length, self.xdepth)
+        return np.interp(length, self.length, self.xdepth, left=np.inf)
 
 
 if __name__ == "__main__":
     xconv = XdepthConversion()
-    xconv.set_theta(30)
-    xconv = XdepthOnTable(xdepth_conversion = xconv, npoints=100)
+    xconv.set_theta(60)
+    x_on_table = XdepthOnTable(xdepth_conversion = xconv, npoints=100)
     
     # nn = 1000000
 
@@ -68,7 +77,7 @@ if __name__ == "__main__":
     # print(xconv.add_len2x(xdepth, dlen))
     # print(xconv.xdepth_conversion.get_max_xdepth())
     
-    print(xconv.convert_h2x([5e5]))
+    print(x_on_table.add_len2x([0],[22450839.24]))
 
 # print(np.random.rand(5)*1e7)
 
