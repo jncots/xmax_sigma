@@ -83,8 +83,8 @@ if __name__ == "__main__":
     # pdg_list = np.array([13, -13, 11, -11, 22, 111, -211], dtype=np.int32)
     # energy_list = np.array([5e3, 5e2, 4e6, 4e3, 2e5, 2e5, 4e3, 5e2, 2e5], dtype=np.float64) 
     
-    pdg_list = np.array([211, -211], dtype=np.int32)
-    energy_list = np.array([1e-1, 1e-1], dtype=np.float64)   
+    pdg_list = np.array([211, -211, 2212], dtype=np.int32)
+    energy_list = np.array([1e-1, 1e4, 1e3], dtype=np.float64)   
 
     print(csec.get_mean_xdepth(pdg_list, energy_list))
     print(csec.get_xdepth(pdg_list, energy_list))

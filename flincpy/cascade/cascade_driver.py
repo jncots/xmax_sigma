@@ -82,10 +82,18 @@ class CascadeDriver:
         
         
         self._check_for_duplicates()    
-        # By default all particles that are physically can decay will decay in pythia
+        # By default all particles that can physically decay will decay in pythia
         # pdgs in stable_pdgs will not be decayed in pythia
         self.decay_driver.set_decaying_pdgs(decaying_pdgs=self.phys_decaying_pdgs,
                                             stable_pdgs=self.stable_pdgs)  
+        
+        self.unconditionally_final_pdgs = self.pdg_lists.leptons_mceq
+        self.only_decaying_pdgs = None
+        self.only_interacting_pdgs = None
+        self.interacting_decaying_pdgs = self.interacting_pdgs
+        self.decaying_if_final_pdgs = None
+        
+        
         
     def _check_for_duplicates(self):
         """Raise exception if any pdg id is more than in one
@@ -183,8 +191,8 @@ class CascadeDriver:
             # print(f"\r{iloop} Number of inter = {self.number_of_interactions}"
             #       f" number of decays = {self.number_of_decays}")
             
-            self.filter_out_leptons()
-            self.filter_by_energy()
+            self.filter_out_final()
+            # self.filter_by_energy()
             self.filter_by_slant_depth()         
             self.run_hadron_interactions()
             if len(self.working_stack) == 0:
@@ -192,31 +200,48 @@ class CascadeDriver:
             
             iloop += 1
         
-        self.run_decay_at_surface()
+        self.run_final_forced_decay()
         
         self.loop_execution_time += time.time() - start_time
         self.runs_number += 1
     
     
-    def filter_out_leptons(self):
+    def filter_out_final(self):
         
         wstack = self.working_stack.valid()
         
-        is_leptons = np.isin(wstack.pid, self.pdg_lists.leptons_mceq)
-        self.final_stack.append(wstack[is_leptons])
+        # Filter unconditionally final
+        is_uncond_final = np.isin(wstack.pid, self.unconditionally_final_pdgs)
+        self.final_stack.append(wstack[is_uncond_final])
+        is_not_uncond_final = np.logical_not(is_uncond_final)
         
-        # Split other particles to interacting and only decaying 
-        is_not_leptons = np.logical_not(is_leptons)
-        is_interacting = np.isin(wstack.pid, self.interacting_pdgs)
-        is_not_interacting = np.logical_not(is_interacting)
+        # Filter by energy threshold
+        is_above_threshold = wstack.energy > self.threshold_energy
+        is_below_threshold = np.logical_not(is_above_threshold)
         
-        is_interacting_hadrons = np.logical_and(is_not_leptons, is_interacting)
-        is_not_interacting_hadrons = np.logical_and(is_not_leptons, is_not_interacting)
+        is_above_threshold = np.logical_and(is_not_uncond_final, is_above_threshold)
+        is_below_threshold = np.logical_and(is_not_uncond_final, is_below_threshold)
         
+        # Split particles below threshold to final and other (assume that they are decaying)
+        is_final = np.isin(wstack.pid, self.final_pdgs)
+        is_not_final = np.logical_not(is_final)
+        is_final = np.logical_and(is_below_threshold, is_final)
+        is_not_final = np.logical_and(is_below_threshold, is_not_final)
         
-        self.decay_stack.append(wstack[is_not_interacting_hadrons])
-        self.spare_working_stack.clear()
-        self.spare_working_stack.append(wstack[is_interacting_hadrons])
+        self.final_stack.append(wstack[is_final])
+        self.final_decay_stack.append(wstack[is_not_final])
+        
+        # Split particles above threshold to interacting and decaying and other
+        # Other are assumed to only decaying. Decay point is different from production point 
+        is_interacting_decaying = np.isin(wstack.pid, self.interacting_decaying_pdgs)
+        is_not_interacting_decaying = np.logical_not(is_interacting_decaying)
+        is_interacting_decaying = np.logical_and(is_above_threshold, is_interacting_decaying)
+        is_not_interacting_decaying = np.logical_and(is_above_threshold, is_not_interacting_decaying)
+        
+        self.propagating_stack.clear()
+        self.propagating_stack.append(wstack[is_interacting_decaying])
+        self.decay_stack.append(wstack[is_not_interacting_decaying])
+        
         self.working_stack.clear()
         
         
@@ -436,24 +461,28 @@ class CascadeDriver:
         self.decay_stack.clear()
         
         
-    def run_decay_at_surface(self):
+    def run_final_forced_decay(self):
         
-        # print(f"Run decay1, number = {len(self.final_decay_stack)}")
-        if len(self.final_decay_stack) == 0:
-            return
-        
-        # print("Run decay2")
-        self.rejection_stack.clear()
-        self.working_stack.clear()
-        
-        self.number_of_decays += self.decay_driver.run_decay(self.final_decay_stack, 
-                                                             decayed_particles=self.working_stack,
-                                                             stable_particles=self.rejection_stack)
+        while len(self.final_decay_stack) > 0:
+
+            self.rejection_stack.clear()
+            self.working_stack.clear()
+            
+            self.number_of_decays += self.decay_driver.run_decay(self.final_decay_stack, 
+                                                                decayed_particles=self.working_stack,
+                                                                stable_particles=self.rejection_stack)
         
         
-        self.id_generator.generate_ids(self.working_stack.valid().id)
-        self.final_stack.append(self.working_stack)
-        self.final_stack.append(self.rejection_stack)
+            wstack = self.working_stack.valid()
+            self.id_generator.generate_ids(wstack.id)
+            
+            is_final = np.isin(wstack.pid, self.final_pdgs)
+            self.final_stack.append(wstack[is_final])
+            self.final_stack.append(self.rejection_stack)
+            
+            should_decay = wstack[np.logical_not(is_final)]
+            self.final_decay_stack.clear()
+            self.final_decay_stack.append(should_decay)
         
     def get_decaying_particles(self):
         return self.decay_stack
