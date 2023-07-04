@@ -245,7 +245,6 @@ class CascadeDriver:
         
     
     
-    
     def filter_by_slant_depth(self):
         
         if len(self.propagating_stack) == 0:

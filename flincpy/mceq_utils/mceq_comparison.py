@@ -2,12 +2,14 @@ from scipy import integrate
 import matplotlib.pyplot as plt
 import numpy as np
 import json
+import contextlib
 
 #import solver related modules
 from MCEq.core import MCEqRun
 import mceq_config as config
 #import primary model choices
 import crflux.models as pm
+from mceq_utils.mceq_solve_rhs import solve_rhs
 
 
 
@@ -194,4 +196,184 @@ class MCEQExtractDists():
         self.flux = self.flux_depth
         
         
+class MceqWrapper():
+    def __init__(self,
+               pdg_id,
+               energy,
+               theta_deg,
+               energy_range,
+               density_model = ("CORSIKA", ("USStd", None)), 
+               interaction_model = "DPMJET-III-19.1",
+               generic_losses_all_charged = True,
+               enable_energy_loss = True, 
+               muon_helicity_dependence = True,
+               hybrid_crossover = 0.5,
+               disable_decays = []):
+        
+        self.pdg_id = pdg_id
+        self.energy = energy
+        self.theta_deg = theta_deg
+        
+        self.e_min = energy_range[0]
+        self.e_max = energy_range[1]
+        self.generic_losses_all_charged = generic_losses_all_charged
+        self.enable_energy_loss = enable_energy_loss
+        self.muon_helicity_dependence = muon_helicity_dependence
+        self.disable_decays = disable_decays
+        self.hybrid_crossover = hybrid_crossover
+        
+        self._set_config()
+
+        
+        with contextlib.redirect_stdout(None):
+            self.mceq_run = MCEqRun(
+                #provide the string of the interaction model
+                interaction_model=interaction_model,
+                #primary cosmic ray flux model
+                primary_model = (pm.HillasGaisser2012, "H3a"),
+                # Zenith angle in degrees. 0=vertical, 90=horizontal
+                theta_deg=self.theta_deg,
+                density_model = density_model
+            )
+        
+        
+        
+        #obtain energy grid (fixed) of the solution for the x-axis of the plots
+        self.e_grid = self.mceq_run.e_grid
+        self.e_widths = self.mceq_run.e_widths
+        self.e_bins = self.mceq_run.e_bins
+        self._particle_lists()
+   
+    def _save_config(self):
+        old_config = {}
+        old_config["e_min"] = config.e_min
+        old_config["e_max"] = config.e_max
+        old_config["generic_losses_all_charged"] = config.generic_losses_all_charged
+        old_config["enable_energy_loss"] = config.enable_energy_loss
+        old_config["muon_helicity_dependence"] = config.muon_helicity_dependence
+        old_config["disable_decays"] = config.adv_set["disable_decays"]
+        old_config["hybrid_crossover"] = config.hybrid_crossover
+        self.old_config = old_config
+    
+    def restore_config(self):
+        old_config = self.old_config
+        config.e_min = old_config["e_min"]
+        config.e_max = old_config["e_max"] 
+        
+        config.generic_losses_all_charged = old_config["generic_losses_all_charged"]
+        config.enable_energy_loss = old_config["enable_energy_loss"]
+        config.muon_helicity_dependence = old_config["muon_helicity_dependence"]
+        config.adv_set["disable_decays"] = old_config["disable_decays"]
+        config.hybrid_crossover = old_config["hybrid_crossover"]
             
+   
+    def _set_config(self):
+        
+        self._save_config()
+        
+        config.e_min = self.e_min
+        config.e_max = self.e_max
+        
+        # Advanced settings
+        config.generic_losses_all_charged = self.generic_losses_all_charged
+        config.enable_energy_loss = self.enable_energy_loss
+        config.muon_helicity_dependence = self.muon_helicity_dependence
+        config.adv_set["disable_decays"] = self.disable_decays
+        config.hybrid_crossover = self.hybrid_crossover
+        
+        # Additional settings
+        
+        # config.enable_2D = True
+        # config.mceq_db_fname = 'mceq_db_rare_decays_URQMD_lext_2D.h5'
+        # config.mceq_db_fname = "mceq_db_lext_dpm191_v150.h5"
+        # config.enable_default_tracking = False
+        # config.enable_em = False
+        # config.enable_em_ion = False
+        # config.hybrid_crossover = 0.1
+        # config.muon_energy_loss = True
+        # config.enable_cont_rad_loss = True
+        # config.enable_energy_loss = True
+        # config.muon_helicity_dependence = True
+        # config.density_model = ("CORSIKA", ("USStd", None))
+        # config.adv_set['force_resonance'] = [421, 431, 411, 310]
+        # config.adv_set['disabled_particles'] = [22, 111, 16, 11]
+        
+        
+    def _particle_lists(self):        
+        collective_pdgs = 1000000
+        
+        self.final_pdgs = []
+        self.resonance_pdgs = []
+        self.mceq_particles = []
+        self.pdg_mceqidx_map = {}
+           
+        for p in self.mceq_run.pman.all_particles:
+            pdg_id = p.unique_pdg_id[0]
+            chirality = p.unique_pdg_id[1]
+            if (abs(pdg_id) < collective_pdgs) and (chirality == 0):
+                self.mceq_particles.append((p.name, pdg_id, p.mceqidx))
+                if p.mceqidx == -1:
+                    self.resonance_pdgs.append(pdg_id)
+                else:
+                    self.final_pdgs.append(pdg_id)
+                    self.pdg_mceqidx_map[pdg_id] = p.mceqidx
+                                              
+     
+    def _set_slant_depths(self, slant_depths):
+        self.slant_depths = np.array(slant_depths)
+        if self.mceq_run.density_model.max_X < np.max(self.slant_depths):
+            raise ValueError(f"Maximum slant_xdepth = {self.mceq_run.density_model.max_X}")
+                                            
+        
+    def solve_single_particle(self, slant_depths):
+        self._set_slant_depths(slant_depths)
+        self.mceq_run.set_single_primary_particle(self.energy, pdg_id = self.pdg_id)
+        self.mceq_run.solve(int_grid=self.slant_depths)
+    
+    def solve_state_vector(self, slant_depths, state_vectors):
+        self._set_slant_depths(slant_depths)
+        solve_rhs(self.mceq_run, int_grid=self.slant_depths, 
+                     grid_var = "X",
+                     rhs_source = state_vectors)
+    
+    
+        
+    def get_fluxes(self, pname_tuples):
+        # Populate longitudinal spectra for all particles:
+        part_long_spectra = {}
+        for p in self.mceq_run.pman.all_particles:
+            # print(f"Spectrum for {p.name}")
+            part_long_xdepth = {}
+            try:
+                for ixdepth in range(len(self.slant_depths)):
+                    part_long_xdepth[ixdepth] = self.mceq_run.get_solution(p.name, grid_idx=ixdepth)
+                part_long_spectra[p.name] = part_long_xdepth    
+            except Exception as ex:
+                # print(f"{p.name} is not given")
+                pass
+
+        self.flux_depth = dict()
+        for ixdepth in range(len(self.slant_depths)):
+            
+            self.flux = dict()
+            for pnames in pname_tuples:
+                
+                group_name = pnames[0]
+                self.flux[group_name] = None
+                for pname in pnames[1:]:
+                    if self.flux[group_name] is None:
+                        try:
+                            self.flux[group_name] = part_long_spectra[pname][ixdepth]
+                        except:
+                            self.flux[group_name] = 0  
+                    else:
+                        try:
+                            self.flux[group_name] += part_long_spectra[pname][ixdepth]
+                        except:
+                            self.flux[group_name] += 0    
+                
+                self.flux[group_name] = self.flux[group_name] * self.e_widths
+
+            self.flux_depth[ixdepth] = self.flux
+        
+        self.flux = self.flux_depth                      
