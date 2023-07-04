@@ -313,7 +313,7 @@ class MceqWrapper():
             pdg_id = p.unique_pdg_id[0]
             chirality = p.unique_pdg_id[1]
             if (abs(pdg_id) < collective_pdgs) and (chirality == 0):
-                self.mceq_particles.append((p.name, pdg_id, p.mceqidx))
+                self.mceq_particles.append((p.name, pdg_id, p.mceqidx, p.E_mix, p.E_crit, p.is_mixed, p.is_resonance))
                 if p.mceqidx == -1:
                     self.resonance_pdgs.append(pdg_id)
                 else:

@@ -44,8 +44,6 @@ def solve_rhs(self, int_grid=None, grid_var="X", **kwargs):
         rhs_source =  kwargs.pop("rhs_source")
 
         start = time()
-        print(dX.shape)
-        print(nsteps)
         
         kernel = solv_numpy
         args = (nsteps, dX, rho_inv, 

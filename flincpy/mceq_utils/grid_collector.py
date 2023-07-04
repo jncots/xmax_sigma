@@ -1,4 +1,5 @@
 from data_structs.pdg_pid_map import PdgPidMap1
+from propagation.tab_pproperties import TabulatedParticleProperties
 import numpy as np
 
 class MceqGridCollector:
@@ -10,6 +11,7 @@ class MceqGridCollector:
         self._init_sdepth_grid()
         self._init_energy_grid()
         self._init_shower_dist()
+        self.pptab = TabulatedParticleProperties()
     
     
     def _init_pid_grid(self):
@@ -65,6 +67,7 @@ class MceqGridCollector:
                 self.n_particles,
                 self.n_energy_grid], 
                 dtype=np.float64)
+        self._info_vars()
         
     
     def _sdepth_bins(self, sdepth_start = 0, sdepth_end = 1095):
@@ -79,40 +82,85 @@ class MceqGridCollector:
         sdepth_widths = sdepth_bins[1:] - sdepth_bins[:-1]
         return sdepth_grid, sdepth_bins, sdepth_widths
     
+        
+    
     def _filter_valid(self, batch):
+        # Convert to kinetic energy
+        batch.energy = batch.energy - self.pptab.mass(batch.pid)
+        
         mceq_idx = self.pdg2idx_mapper.get_pids(batch.pid)
-        
-        unique, counts = np.unique(batch[mceq_idx == self.pdg2idx_mapper.none_value].pid, 
-                                   return_counts=True)
-        
-        if len(unique) > 0:
-            print(f"Unknown pdgs:{unique}\n      counts:{counts}")
-            print(f"Known pdgs: {self.pdg2idx_mapper.known_pdg_ids}")
-        
+                
         # Filter particles with pdgs present in mceq
-        valid_mceq_batch = batch[np.where(mceq_idx != self.pdg2idx_mapper.none_value)[0]]
+        valid_mceq_batch_idx = mceq_idx != self.pdg2idx_mapper.none_value
+        valid_mceq_batch = batch[valid_mceq_batch_idx]
+        self._record_removed(batch, valid_mceq_batch_idx, "pdg_id")
+        
         
         # Filter particles with sdepth inside sdepth_bins
         sdepth_idx = np.digitize(valid_mceq_batch.xdepth, 
                                  self.sdepth_bins, right=True)
 
-        valid_sdepth_batch_idx = np.where((sdepth_idx > 0) &
-                                          (sdepth_idx < len(self.sdepth_bins)))[0]
+        valid_sdepth_batch_idx = ((sdepth_idx > 0) & (sdepth_idx < len(self.sdepth_bins)))
             
         valid_sdepth_batch = valid_mceq_batch[valid_sdepth_batch_idx]
+        
+        self._record_removed(valid_mceq_batch, valid_sdepth_batch_idx, "sdepth")
+        
         
         # Filter particles with energy inside energy_bins
         energy_idx = np.digitize(valid_sdepth_batch.energy, 
                                  self.energy_bins, right=True)
         
-        valid_energy_batch_idx = np.where((energy_idx > 0) &
-                                          (energy_idx < len(self.energy_bins)))[0]
+        valid_energy_batch_idx = ((energy_idx > 0) & (energy_idx < len(self.energy_bins)))
         
         valid_energy_batch = valid_sdepth_batch[valid_energy_batch_idx]
+        self._record_removed(valid_sdepth_batch, valid_energy_batch_idx, "energy")
         
         return valid_energy_batch
     
     
+    def _info_vars(self):
+        reasons = {}
+        reasons["energy"] = ("outside of energy_bins="
+                  f"[{self.energy_bins[0]:.3e}, {self.energy_bins[-1]:.3e}],"
+                  f" n_bins={len(self.energy_bins) - 1}")
+        
+        reasons["sdepth"] = ("outside of sdepth_bins="
+                  f"[{self.sdepth_bins[0]:.3e}, {self.sdepth_bins[-1]:.3e}],"
+                  f" n_bins={len(self.sdepth_bins) - 1}")
+        
+        reasons["pdg_id"] = ("not among known pdg ids="
+                            f"{self.pdg2idx_mapper.known_pdg_ids}")
+        
+        self.reasons = reasons
+        self._removed_info = ""
+        self._removed_info_count = 1
+        
+    
+    def _record_removed(self, batch, valid_idx, reason):
+        
+        not_valid_idx = np.where(np.logical_not(valid_idx))[0]
+        if len(not_valid_idx) > 0:
+            removed = batch[not_valid_idx]
+            unique, counts = np.unique(removed.pid, return_counts=True)
+            removed_tot_energy = np.sum(removed.energy)
+            removed_energy = [np.sum(removed[removed.pid == pid].energy) for pid in unique]
+            removed_energy_share = removed_energy/removed_tot_energy
+            removed_energy = [f"{value:.3e}" for value in removed_energy]
+            removed_energy_share = [f"{value:.3e}" for value in removed_energy_share]
+            
+            self._removed_info += f"\n\nNot put on a grid (block {self._removed_info_count}) :\n"
+            self._removed_info += f" {len(not_valid_idx)} particles\n"
+            self._removed_info += f" pdg_ids: {list(unique)}\n"
+            self._removed_info += f" counts: {list(counts)}\n"
+            self._removed_info += f" energies: {removed_energy} GeV\n"
+            self._removed_info += f" share of total energy: {removed_energy_share}\n\n"
+            self._removed_info += f" total energy: {np.sum(removed.energy):.3e} GeV\n"
+            self._removed_info += f" energy range: [{np.min(removed.energy):.3e}, {np.max(removed.energy):.3e}] GeV\n"
+            self._removed_info += f" slant depth range: [{np.min(removed.xdepth):.3e}, {np.max(removed.xdepth):.3e}] g/cm2\n"
+            self._removed_info += f" reason: {self.reasons[reason]}"
+            self._removed_info_count += 1
+        
     
     def _indices_for_addition(self, batch):
         # Calculate indices along sdepth dimension
@@ -250,4 +298,12 @@ class MceqGridCollector:
                       * self.energy_widths
                       * self.energy_grid**2)    
         
+    
+    
+    def print_info(self, debug_info = False):
+        print(f"On grid:")
+        print(f"  Total number of particles: {int(self.tot_particles_on_grid())}")
+        print(f"  Total energy: {self.tot_energy_on_grid():6e} GeV")
         
+        if debug_info:
+            print(self._removed_info)
