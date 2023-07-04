@@ -139,8 +139,8 @@ class CascadeDriver:
         self.stop_xdepth = self.xdepth_getter.xdepth_conversion.convert_h2x(stop_height * 1e5)
         self.xdepth_getter.set_stop_xdepth(self.stop_xdepth)
         print(f"stop depth = {self.stop_xdepth}")
-        print(f"Interacting pdgs = {self.interacting_pdgs}"
-              f"Number = {len(self.interacting_pdgs)}")
+        # print(f"Interacting pdgs = {self.interacting_pdgs}"
+        #       f"Number = {len(self.interacting_pdgs)}")
         
         if reset_ids:
             self.id_generator = IdGenerator()

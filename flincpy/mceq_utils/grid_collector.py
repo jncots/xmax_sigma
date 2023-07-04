@@ -1,10 +1,11 @@
-from data_structs.pdg_pid_map import PdgPidMap1, pdg2mceq_idx_map
+from data_structs.pdg_pid_map import PdgPidMap1
 import numpy as np
 
 class MceqGridCollector:
-    def __init__(self, mceq_run, int_grid):
-        self.mceq_run = mceq_run
-        self.int_grid = int_grid
+    def __init__(self, mceq_wrapper):
+        self.mceq_run = mceq_wrapper.mceq_run
+        self.int_grid = mceq_wrapper.slant_depths
+        self.pdg_mceqidx_map = mceq_wrapper.pdg_mceqidx_map
         self._init_pid_grid()
         self._init_sdepth_grid()
         self._init_energy_grid()
@@ -15,7 +16,7 @@ class MceqGridCollector:
         """Initialization of the arrays related to
         particle id grid in mceq
         """
-        self.pdg2idx_mapper = PdgPidMap1(pdg2mceq_idx_map(self.mceq_run))
+        self.pdg2idx_mapper = PdgPidMap1(self.pdg_mceqidx_map)
         self.n_particles = self.mceq_run.pman.n_cparticles
             
     
@@ -84,8 +85,9 @@ class MceqGridCollector:
         unique, counts = np.unique(batch[mceq_idx == self.pdg2idx_mapper.none_value].pid, 
                                    return_counts=True)
         
-        print(f"Unique: {unique}\nCounts{counts}")
-        print(f"Known pdgs: {self.pdg2idx_mapper.known_pdg_ids}")
+        if len(unique) > 0:
+            print(f"Unknown pdgs:{unique}\n      counts:{counts}")
+            print(f"Known pdgs: {self.pdg2idx_mapper.known_pdg_ids}")
         
         # Filter particles with pdgs present in mceq
         valid_mceq_batch = batch[np.where(mceq_idx != self.pdg2idx_mapper.none_value)[0]]
@@ -232,7 +234,7 @@ class MceqGridCollector:
                     valid_mceq_idx)              # list of valid mceq particle indicies
         
 
-    def number_particles_on_grid(self):
+    def tot_particles_on_grid(self):
         """Number of particles on a grid should conserve"""
         return np.sum(self.shower_dist * self.energy_widths)
     

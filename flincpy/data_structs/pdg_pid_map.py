@@ -167,28 +167,7 @@ class PdgPidMap1:
     def _get_pids_full(self, pdgs):
         return np.array([self.pid_pdg_dict[pdg] for pdg in pdgs], 
                         dtype = np.int32)
-        
-
-def pdg2mceq_idx_map(mceq_run):
-    """Return dictionary with mapping from pdg to mceq_idx
-    as mceq_run.pman.pdg2mceqidx gives
-
-    Args:
-        mceq_run (MCEq_Run): initialized MCEq_Run object
-    """
-    pdg_idx_map = {}
-    print("MCEq pdgs:")
-    # for mceq_run.pman.all_particles
-    
-    
-    for pdg_mceq, idx_mceq in mceq_run.pman.pdg2mceqidx.items():
-        print(f"pdg_mceq = {pdg_mceq}, mceq_idx = {idx_mceq}")
-        # Filter only "ordinary" particles
-        if pdg_mceq[1] == 0 and abs(pdg_mceq[0]) < 10000 and idx_mceq > -1:  
-            # print(pdg_mceq[0], idx_mceq)
-            pdg_idx_map[pdg_mceq[0]] = idx_mceq
-        
-    return pdg_idx_map    
+          
             
             
         

@@ -1,7 +1,4 @@
-from scipy import integrate
-import matplotlib.pyplot as plt
 import numpy as np
-import json
 import contextlib
 
 #import solver related modules
@@ -10,6 +7,7 @@ import mceq_config as config
 #import primary model choices
 import crflux.models as pm
 from mceq_utils.mceq_solve_rhs import solve_rhs
+from mceq_utils.grid_collector import MceqGridCollector
 
 
 
@@ -202,6 +200,7 @@ class MceqWrapper():
                energy,
                theta_deg,
                energy_range,
+               slant_depths,
                density_model = ("CORSIKA", ("USStd", None)), 
                interaction_model = "DPMJET-III-19.1",
                generic_losses_all_charged = True,
@@ -242,7 +241,10 @@ class MceqWrapper():
         self.e_grid = self.mceq_run.e_grid
         self.e_widths = self.mceq_run.e_widths
         self.e_bins = self.mceq_run.e_bins
+        self._set_slant_depths(slant_depths)
         self._particle_lists()
+        self.collector = MceqGridCollector(self)
+        
    
     def _save_config(self):
         old_config = {}
@@ -325,16 +327,14 @@ class MceqWrapper():
             raise ValueError(f"Maximum slant_xdepth = {self.mceq_run.density_model.max_X}")
                                             
         
-    def solve_single_particle(self, slant_depths):
-        self._set_slant_depths(slant_depths)
+    def solve_single_particle(self):
         self.mceq_run.set_single_primary_particle(self.energy, pdg_id = self.pdg_id)
         self.mceq_run.solve(int_grid=self.slant_depths)
     
-    def solve_state_vector(self, slant_depths, state_vectors):
-        self._set_slant_depths(slant_depths)
+    def solve_collector(self):
         solve_rhs(self.mceq_run, int_grid=self.slant_depths, 
                      grid_var = "X",
-                     rhs_source = state_vectors)
+                     rhs_source = self.collector.state_vectors())
     
     
         
