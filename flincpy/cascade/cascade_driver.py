@@ -192,7 +192,6 @@ class CascadeDriver:
             #       f" number of decays = {self.number_of_decays}")
             
             self.filter_out_final()
-            # self.filter_by_energy()
             self.filter_by_slant_depth()         
             self.run_hadron_interactions()
             if len(self.working_stack) == 0:
@@ -244,44 +243,7 @@ class CascadeDriver:
         
         self.working_stack.clear()
         
-        
     
-    def filter_by_energy(self):   
-        
-        wstack = self.spare_working_stack.valid()
-        
-        # Put in the working stack particles with above threshold energy
-        is_above_threshold = wstack.energy > self.threshold_energy
-        above_threshold_idx = np.where(is_above_threshold)[0]
-        self.propagating_stack.clear()
-        self.propagating_stack.append(wstack[above_threshold_idx])
-        
-        
-        # Separate the particles that should decay before moving to final_stack
-        # from particles that are already in final state and should move to final_stack
-        is_below_threshold = np.logical_not(is_above_threshold)
-        is_final = np.isin(wstack.pid, self.final_pdgs)
-        is_should_decay = np.logical_not(is_final)
-        
-        self.final_stack.append(wstack[np.logical_and(is_below_threshold, is_final)])
-        self.final_decay_stack.append(wstack[np.logical_and(is_below_threshold, is_should_decay)])   
-        
-        
-        # particle_number = above_threshold_idx.size + is_decaying_idx.size + is_stable_idx.size
-        
-        # if above_threshold_idx.size < len(wstack):
-        #     print(f"Above threshold = {above_threshold_idx.size/len(wstack)*100} %,"
-        #           f" {above_threshold_idx.size}/{len(wstack)}")
-            
-        #     print(f"Above th = {above_threshold_idx.size}")  
-        #     print(f"is_decaying = {is_decaying_idx.size}, pid = {wstack[is_decaying_idx].pid}")  
-        #     print(f"is_stable_idx = {is_stable_idx.size}")  
-            
-        
-        # assert particle_number == len(wstack), (
-        #         "Number of distributed particles not equal to number of initial particles")
-        
-        self.working_stack.clear()
     
     
     def filter_by_slant_depth(self):
