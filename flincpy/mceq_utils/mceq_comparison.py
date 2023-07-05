@@ -304,22 +304,48 @@ class MceqWrapper():
     def _particle_lists(self):        
         collective_pdgs = 1000000
         
-        self.final_pdgs = []
-        self.resonance_pdgs = []
-        self.mceq_particles = []
         self.pdg_mceqidx_map = {}
-           
+        
+        final_pdgs = []
+        only_interacting_pdgs = []
+        only_decaying_pdgs = []
+        resonance_pdgs = []
+        mixed_pdgs = []
+        mixed_tot_energy = []
+        
+        self.mceq_particles = []   
         for p in self.mceq_run.pman.all_particles:
             pdg_id = p.unique_pdg_id[0]
             chirality = p.unique_pdg_id[1]
             if (abs(pdg_id) < collective_pdgs) and (chirality == 0):
-                self.mceq_particles.append((p.name, pdg_id, p.mceqidx, p.E_mix, p.E_crit, p.is_mixed, p.is_resonance))
-                if p.mceqidx == -1:
-                    self.resonance_pdgs.append(pdg_id)
+                self.mceq_particles.append((p.name, pdg_id, p.mceqidx, p.E_mix, p.E_crit, p.is_mixed, p.is_resonance, p.mass))
+                if p.is_mixed:
+                    mixed_pdgs.append(pdg_id)
+                    mixed_tot_energy.append(p.E_mix + p.mass)
+                elif p.is_resonance:
+                    resonance_pdgs.append(pdg_id)
+                elif pdg_id in (-2212, 2212):
+                    only_interacting_pdgs.append(pdg_id)
+                elif pdg_id in (-13, 13):
+                    only_decaying_pdgs.append(pdg_id)
                 else:
-                    self.final_pdgs.append(pdg_id)
+                    final_pdgs.append(pdg_id)
+                    
+                if p.mceqidx != -1:
                     self.pdg_mceqidx_map[pdg_id] = p.mceqidx
-                                              
+        
+        mceq_mixed_info = {}
+        mceq_mixed_info["pdg_ids"] = np.array(mixed_pdgs)
+        mceq_mixed_info["etot_mix"] = np.array(mixed_tot_energy)
+        
+        pdgs_categories = {}
+        pdgs_categories["final"] = final_pdgs
+        pdgs_categories["only_interacting"] = only_interacting_pdgs
+        pdgs_categories["only_decaying"] = only_decaying_pdgs
+        pdgs_categories["resonance"] = resonance_pdgs
+        pdgs_categories["mixed"] = mceq_mixed_info
+        self.pdgs_categories = pdgs_categories        
+                                  
      
     def _set_slant_depths(self, slant_depths):
         self.slant_depths = np.array(slant_depths)
