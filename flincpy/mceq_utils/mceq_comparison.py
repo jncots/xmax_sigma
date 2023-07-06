@@ -8,6 +8,7 @@ import mceq_config as config
 import crflux.models as pm
 from mceq_utils.mceq_solve_rhs import solve_rhs
 from mceq_utils.grid_collector import MceqGridCollector
+from cascade.cascade_driver import CascadeDriver
 
 
 
@@ -344,7 +345,7 @@ class MceqWrapper():
         pdgs_categories["only_decaying"] = only_decaying_pdgs
         pdgs_categories["resonance"] = resonance_pdgs
         pdgs_categories["mixed"] = mceq_mixed_info
-        self.pdgs_categories = pdgs_categories        
+        self.pdgs_categories = pdgs_categories      
                                   
      
     def _set_slant_depths(self, slant_depths):
@@ -362,9 +363,8 @@ class MceqWrapper():
                      grid_var = "X",
                      rhs_source = self.collector.state_vectors())
     
-    
         
-    def get_fluxes(self, pname_tuples):
+    def get_fluxes_for(self, pname_tuples):
         # Populate longitudinal spectra for all particles:
         part_long_spectra = {}
         for p in self.mceq_run.pman.all_particles:
@@ -402,4 +402,57 @@ class MceqWrapper():
 
             self.flux_depth[ixdepth] = self.flux
         
-        self.flux = self.flux_depth                      
+        self.flux = self.flux_depth
+        return self.flux                      
+        
+        
+        
+        
+class HybridMCEq(MceqWrapper):
+    
+    def start_cascade_driver(self, interaction_model, threshold):
+        self.threshold = threshold
+        
+        if threshold >= self.energy:
+            raise ValueError(f"threshold energy = {threshold:.3e} GeV >= initial energy {self.energy:.3e} GeV ")
+        
+        self.cascade_driver = CascadeDriver(interaction_model)
+        self._restart_cascade_driver()
+    
+    
+        return self.cascade_driver
+    
+    def _restart_cascade_driver(self):
+        self.cascade_driver.simulation_parameters(
+                                 pdg = self.pdg_id, energy = self.energy, 
+                                 zenith_angle = self.theta_deg, xdepth = 0,
+                                 threshold_energy = self.threshold, stop_height = 0,
+                                 accumulate_runs = True, reset_ids = True,
+                                 pdgs_categories = self.pdgs_categories
+                                 )
+          
+    
+    def run_hybrid_solution(self, cascade_runs = 1, restart=False):
+        
+        if restart:
+            self._restart_cascade_driver()
+            
+        self.cascade_driver.run(cascade_runs)
+        
+        self.collector.clear()
+        self.collector.add_particles(self.cascade_driver.final_stack.valid(),
+                                     self.cascade_driver.runs_number)
+        self.solve_collector()
+    
+    def set_result_categories(self, result_categories):
+        self.result_categories = result_categories
+    
+    def hybrid_solution(self, cascade_runs, restart = False):
+        self.run_hybrid_solution(cascade_runs, restart)
+        self.hybrid_flux = self.get_fluxes_for(self.result_categories)
+        return self.hybrid_flux
+    
+    def regular_solution(self):
+        self.solve_single_particle()
+        self.regular_flux = self.get_fluxes_for(self.result_categories)
+        return self.regular_flux

@@ -94,7 +94,7 @@ class TabulatedParticleProperties:
             mass_array = self._mass_tab[self.pmap.get_pids(pdg_array)]
         except IndexError:
             # It is assumed to be a rare case
-            print(f"Pdg_array = {pdg_array}")
+            # print(f"Pdg_array = {pdg_array}")
             mass_array = np.frompyfunc(self.get_mass, 1, 1)(pdg_array).astype(
                 "float64"
             )
