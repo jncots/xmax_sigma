@@ -199,29 +199,30 @@ class CascadeDriver:
             # print(f"\r{iloop} Number of inter = {self.number_of_interactions}"
             #       f" number of decays = {self.number_of_decays}")
             
-            self.catch_charged_pions(1)
+            # print(f"{iloop} Working stack = {len(self.working_stack)}")
+            # self.catch_charged_pions(1)
             self.filter_uncond_final()
-            self.catch_charged_pions(2)
+            # self.catch_charged_pions(2)
             self.filter_by_threshold_energy()
-            self.catch_charged_pions(3)
+            # self.catch_charged_pions(3)
             self.handle_below_threshold()
-            self.catch_charged_pions(4)
+            # self.catch_charged_pions(4)
             self.handle_above_threshold()
-            self.catch_charged_pions(5)
+            # self.catch_charged_pions(5)
             self.filter_by_slant_depth2()
-            self.catch_charged_pions(6)
+            # self.catch_charged_pions(6)
             # self.filter_out_final()
             # self.filter_by_slant_depth1()         
             self.run_hadron_interactions()
-            self.catch_charged_pions(7)
+            # self.catch_charged_pions(7)
             if len(self.working_stack) == 0:
                 self.run_particle_decay()
-                self.catch_charged_pions(8)
+                # self.catch_charged_pions(8)
             
             iloop += 1
         
         self.run_final_forced_decay()
-        self.catch_charged_pions(9)
+        # self.catch_charged_pions(9)
         
         self.loop_execution_time += time.time() - start_time
         self.runs_number += 1
